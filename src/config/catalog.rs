@@ -1,4 +1,4 @@
-use crate::game_config::ExtraOption;
+use crate::config::ExtraOption;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Category {
@@ -127,7 +127,7 @@ pub fn kind(option: &ExtraOption) -> Kind {
         ("Controller", "deadzone") => Kind::Decimal(0.0, 1.0),
         ("Graphics" | "Game" | "GameMode", _)
             if matches!(
-                crate::game_config::default_value(&option.section, &option.key),
+                crate::config::default_value(&option.section, &option.key),
                 Some("0" | "1")
             ) =>
         {

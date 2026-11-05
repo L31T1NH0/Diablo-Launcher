@@ -158,7 +158,7 @@ fn read(path: &Path) -> Result<Option<String>, String> {
     }
 }
 
-pub const DEFAULTS: &str = include_str!("../config/defaults-1.5.5.ini");
+pub const DEFAULTS: &str = include_str!("../../config/defaults-1.5.5.ini");
 pub fn default_value(section: &str, key: &str) -> Option<&'static str> {
     value(DEFAULTS, section, key)
 }
@@ -300,7 +300,7 @@ impl GameConfig {
             if option.value.contains(['\n', '\r', '\0']) {
                 return Err(format!("{}: enter a single-line value.", option.key));
             }
-            crate::option_catalog::validate(option)?;
+            crate::config::catalog::validate(option)?;
             text = set_value(&text, &option.section, &option.key, &option.value);
         }
         let temp = self
@@ -415,7 +415,7 @@ mod tests {
             );
         }
         for option in &extras {
-            crate::option_catalog::validate(option).unwrap();
+            crate::config::catalog::validate(option).unwrap();
         }
         assert!(extras.iter().filter(|o| o.section == "Keymapping").count() > 40);
         assert!(extras.iter().filter(|o| o.section == "Padmapping").count() > 50);

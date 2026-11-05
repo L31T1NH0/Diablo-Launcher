@@ -1,1 +1,8 @@
 /target/
+
+# Local game data and interrupted installations
+*.[mM][pP][qQ]
+*.sv
+*.hsv
+diablo.ini*
+.devilution-install-*/
