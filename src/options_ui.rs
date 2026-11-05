@@ -4,7 +4,7 @@ use crate::{
 };
 use eframe::egui::{self, RichText, Vec2};
 
-// O menu só existe enquanto o botão de origem intersecta a área visível do painel.
+// Only show the menu while its button intersects the visible scroll area.
 pub fn dropdown(
     ui: &mut egui::Ui,
     selected: &str,
@@ -55,7 +55,7 @@ pub fn game_options(
     let options = &mut config.options;
     match selected {
         Category::Video => {
-            row(ui, "Resolução", |ui| {
+            row(ui, "Resolution", |ui| {
                 dropdown(
                     ui,
                     &format!("{} × {}", options.width, options.height),
@@ -83,7 +83,7 @@ pub fn game_options(
                     },
                 );
             });
-            row(ui, "Resolução personalizada", |ui| {
+            row(ui, "Custom resolution", |ui| {
                 ui.add(
                     egui::DragValue::new(&mut options.width)
                         .range(640..=16384)
@@ -96,39 +96,35 @@ pub fn game_options(
                         .suffix(" px"),
                 );
             });
-            ui.checkbox(&mut options.fullscreen, "Tela cheia");
-            ui.checkbox(&mut options.upscale, "Ajustar imagem à janela");
-            row(ui, "Quadros por segundo", |ui| {
+            ui.checkbox(&mut options.fullscreen, "Fullscreen");
+            ui.checkbox(&mut options.upscale, "Scale image to window");
+            row(ui, "Frame rate", |ui| {
                 dropdown(
                     ui,
                     match options.frame_control {
-                        0 => "Sem limite",
-                        1 => "Sincronização vertical",
-                        2 => "Limitar FPS",
-                        _ => "Personalizado",
+                        0 => "Unlimited",
+                        1 => "Vertical sync",
+                        2 => "Limit FPS",
+                        _ => "Custom",
                     },
                     |ui| {
-                        ui.selectable_value(&mut options.frame_control, 0, "Sem limite");
-                        ui.selectable_value(
-                            &mut options.frame_control,
-                            1,
-                            "Sincronização vertical",
-                        );
-                        ui.selectable_value(&mut options.frame_control, 2, "Limitar FPS");
+                        ui.selectable_value(&mut options.frame_control, 0, "Unlimited");
+                        ui.selectable_value(&mut options.frame_control, 1, "Vertical sync");
+                        ui.selectable_value(&mut options.frame_control, 2, "Limit FPS");
                     },
                 );
             });
         }
         Category::Audio => {
-            row(ui, "Música", |ui| {
+            row(ui, "Music", |ui| {
                 ui.add(egui::Slider::new(&mut options.music, 0..=100).suffix(" %"));
             });
-            row(ui, "Efeitos sonoros", |ui| {
+            row(ui, "Sound effects", |ui| {
                 ui.add(egui::Slider::new(&mut options.sound, 0..=100).suffix(" %"));
             });
         }
         Category::Game => {
-            row(ui, "Idioma", |ui| {
+            row(ui, "Language", |ui| {
                 let current = LANGUAGES
                     .iter()
                     .find(|(code, _)| *code == options.language)
@@ -141,25 +137,22 @@ pub fn game_options(
                     }
                 });
             });
-            ui.checkbox(&mut options.run_in_town, "Correr na cidade");
-            ui.checkbox(&mut options.auto_gold, "Coletar ouro automaticamente");
-            ui.checkbox(&mut options.quick_cast, "Lançar magias pelos atalhos");
+            ui.checkbox(&mut options.run_in_town, "Run in town");
+            ui.checkbox(&mut options.auto_gold, "Pick up gold automatically");
+            ui.checkbox(&mut options.quick_cast, "Cast spells with hotkeys");
         }
         Category::Interface => {
-            ui.checkbox(&mut options.show_fps, "Mostrar FPS no jogo");
+            ui.checkbox(&mut options.show_fps, "Show FPS");
         }
         Category::Startup => {
-            ui.checkbox(
-                skip_intro,
-                "Ignorar todos os vídeos ao iniciar pelo launcher",
-            );
+            ui.checkbox(skip_intro, "Skip intro videos when starting the game");
         }
         Category::Keyboard => {
-            ui.label(RichText::new("Use os nomes das teclas do jogo, como F5, LALT ou RCONTROL. Campo vazio remove o atalho.").color(crate::MUTED));
+            ui.label(RichText::new("Use game key names, such as F5, LALT or RCONTROL. Leave a field empty to clear the shortcut.").color(crate::MUTED));
         }
         Category::Controller => {
             ui.label(
-                RichText::new("Combinações usam +, como Select+LT. Campo vazio remove o atalho.")
+                RichText::new("Use + for button combinations, such as Select+LT. Leave a field empty to clear the shortcut.")
                     .color(crate::MUTED),
             );
         }
@@ -252,32 +245,32 @@ fn option_ui(ui: &mut egui::Ui, option: &mut ExtraOption) {
 
 const LANGUAGES: &[(&str, &str)] = &[
     ("en", "English"),
-    ("pt_BR", "Português (Brasil)"),
-    ("es", "Español"),
-    ("de", "Deutsch"),
-    ("fr", "Français"),
-    ("it", "Italiano"),
-    ("pl", "Polski"),
-    ("ru", "Русский"),
-    ("uk", "Українська"),
-    ("be", "Беларуская"),
-    ("bg", "Български"),
-    ("cs", "Čeština"),
-    ("da", "Dansk"),
-    ("el", "Ελληνικά"),
-    ("et", "Eesti"),
-    ("fi", "Suomi"),
-    ("he", "Hebraico"),
-    ("hr", "Hrvatski"),
-    ("hu", "Magyar"),
-    ("ja", "Japonês"),
-    ("ko", "Coreano"),
-    ("ro", "Română"),
-    ("sv", "Svenska"),
-    ("tr", "Türkçe"),
-    ("tt", "Татарча"),
-    ("zh_CN", "Chinês simplificado"),
-    ("zh_TW", "Chinês tradicional"),
+    ("pt_BR", "Portuguese (Brazil)"),
+    ("es", "Spanish"),
+    ("de", "German"),
+    ("fr", "French"),
+    ("it", "Italian"),
+    ("pl", "Polish"),
+    ("ru", "Russian"),
+    ("uk", "Ukrainian"),
+    ("be", "Belarusian"),
+    ("bg", "Bulgarian"),
+    ("cs", "Czech"),
+    ("da", "Danish"),
+    ("el", "Greek"),
+    ("et", "Estonian"),
+    ("fi", "Finnish"),
+    ("he", "Hebrew"),
+    ("hr", "Croatian"),
+    ("hu", "Hungarian"),
+    ("ja", "Japanese"),
+    ("ko", "Korean"),
+    ("ro", "Romanian"),
+    ("sv", "Swedish"),
+    ("tr", "Turkish"),
+    ("tt", "Tatar"),
+    ("zh_CN", "Chinese (Simplified)"),
+    ("zh_TW", "Chinese (Traditional)"),
 ];
 
 #[cfg(test)]
@@ -302,7 +295,7 @@ mod tests {
                             .vertical_scroll_offset(offset)
                             .show(ui, |ui| {
                                 id = Some(
-                                    dropdown(ui, "Resolução", |ui| {
+                                    dropdown(ui, "Resolution", |ui| {
                                         ui.label("1280 × 720");
                                     })
                                     .id
@@ -321,7 +314,7 @@ mod tests {
         render(0.0);
         assert!(
             egui::Popup::is_id_open(&ctx, id),
-            "O menu deve continuar aberto com o campo visível"
+            "The menu should stay open while its button is visible"
         );
         render(500.0);
         assert!(!egui::Popup::is_id_open(&ctx, id));

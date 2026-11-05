@@ -1,13 +1,13 @@
-# Catálogo de opções
+# Game options
 
-`defaults-1.5.5.ini` contém as 190 preferências persistidas pelo DevilutionX 1.5.5 em Linux: opções gráficas, áudio, idioma, jogabilidade, inicialização, demonstração, rede, mensagens, teclado e controle.
+The launcher includes 190 Linux settings from DevilutionX 1.5.5. They cover graphics, sound, language, gameplay, startup screens, demo mode, networking, chat messages, keyboard shortcuts, and controller buttons.
 
-Referências oficiais:
+Your current settings always take priority. Extra options found in your game file are also shown. The launcher only writes values you change and keeps a backup before saving.
 
-- [Source/options.cpp na versão 1.5.5](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Source/options.cpp): categorias, nomes INI, padrões e listas de valores.
-- [Source/options.h na versão 1.5.5](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Source/options.h): enumerações de vídeo, inicialização e números flutuantes.
-- [Source/engine/sound_defs.hpp](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Source/engine/sound_defs.hpp): intervalo do volume (-1600 a 0).
+## Technical reference
 
-O catálogo serve para mostrar opções mesmo quando o INI ainda não contém todas as chaves. Ele não substitui o arquivo do usuário. Os valores existentes têm prioridade; novas chaves de versões/mods também são incorporadas à interface. Apenas campos efetivamente editados são gravados.
+- [options.cpp](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Source/options.cpp): option names, defaults, and available values.
+- [options.h](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Source/options.h): display and startup modes.
+- [sound_defs.hpp](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Source/engine/sound_defs.hpp): sound volume range.
 
-`LastSinglePlayerHero`, `LastMultiplayerHero` e `SItem` são estado de personagens/saves e permanecem intactos. `GameMode.Game` é controlado pela opção de expansão do launcher e pelos argumentos de execução. Opções específicas de outras plataformas não fazem parte do catálogo Linux. Idiomas ou recursos opcionais podem exigir os arquivos correspondentes da instalação do jogo.
+The catalog is stored in `defaults-1.5.5.ini`. It fills gaps in the interface without replacing the user's file. Internal save data (`LastSinglePlayerHero`, `LastMultiplayerHero`, and `SItem`) is left untouched. The launcher controls `GameMode.Game` through its expansion setting. Options for other platforms are outside this Linux catalog. Some languages and optional features require additional game files.

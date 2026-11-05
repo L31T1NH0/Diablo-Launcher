@@ -1,12 +1,17 @@
-# Imagens
+# Image credits
 
-As imagens são incorporadas ao binário; nenhuma imagem é buscada durante o uso.
+Images are bundled with the app, so they work offline.
 
-- `diablo-hero.jpg`: arte promocional de Diablo, Blizzard Entertainment, publicada no [press kit Blizzard Classic Games Now Available on Battle.net](https://blizzard.gamespress.com/Kit/Details/Blizzard-Classic-Games-Now-Available-on-Battlenet). Download em 5 de novembro de 2026.
-  URL: https://imguscdn.gamespress.com/cdn/files/BlizzardLive/2024/01/300046-d8c40734/blizzard_diablo_launch_1920x1080.jpg?lightbox=y&otf=y&sky=cb97084ff11861babe22f070daa82f7c51031fb3f8b77f6f7a6b83b68ab75538
-- `devilutionx-logo.png`: ícone oficial do [projeto DevilutionX](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Packaging/resources/icon.png), baixado da versão 1.5.5.
-  URL: https://raw.githubusercontent.com/diasurgical/DevilutionX/1.5.5/Packaging/resources/icon.png
+- **Diablo artwork** (`diablo-hero.jpg`): Blizzard Entertainment, from the [Blizzard Classic Games press kit](https://blizzard.gamespress.com/Kit/Details/Blizzard-Classic-Games-Now-Available-on-Battlenet).
+- **DevilutionX icon** (`devilutionx-logo.png`): the [official DevilutionX project](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Packaging/resources/icon.png), version 1.5.5.
+- **DevilutionX wordmark** (`devilutionx-wordmark.png`): the original PNG supplied by the project owner, used without changes.
+- **Screenshots** (`launcher.png`, `settings.png`): captured from this launcher.
 
-As marcas e imagens pertencem aos seus respectivos titulares. Este launcher é um projeto independente.
+Images and trademarks belong to their respective owners. This is an independent project.
 
-- `devilutionx-wordmark.png`: logo tipográfica em PNG fornecida pelo usuário em Downloads. O arquivo original foi incorporado sem alterações; o ícone oficial à esquerda foi mantido separado.
+## Source details
+
+Downloaded on November 5, 2026:
+
+- [Original Diablo artwork](https://imguscdn.gamespress.com/cdn/files/BlizzardLive/2024/01/300046-d8c40734/blizzard_diablo_launch_1920x1080.jpg?lightbox=y&otf=y&sky=cb97084ff11861babe22f070daa82f7c51031fb3f8b77f6f7a6b83b68ab75538)
+- [Original DevilutionX icon](https://raw.githubusercontent.com/diasurgical/DevilutionX/1.5.5/Packaging/resources/icon.png)

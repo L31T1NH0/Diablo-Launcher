@@ -68,7 +68,7 @@ fn log_path() -> PathBuf {
 
 impl Settings {
     fn detected() -> Self {
-        // O instalador Mint separado usa ~/.local/share mesmo com XDG personalizado.
+        // The separate Mint installer uses ~/.local/share even with a custom XDG path.
         let local = home().join(".local/share/devilutionx/devilutionx");
         let executable = [local, data_home().join("devilutionx/devilutionx")]
             .into_iter()
@@ -94,11 +94,11 @@ impl Settings {
 
     fn validate(&self) -> Result<(), String> {
         if !Path::new(&self.executable).is_file() {
-            return Err("Selecione o executável do DevilutionX em Configuração.".into());
+            return Err("Choose your DevilutionX executable in Settings.".into());
         }
         let data = Path::new(&self.data);
         if !data.is_dir() {
-            return Err("A pasta dos dados não existe. Confira Configuração.".into());
+            return Err("The game data folder was not found. Check Settings.".into());
         }
         let mut required = vec!["diabdat.mpq"];
         if self.game == Game::Hellfire {
@@ -112,7 +112,7 @@ impl Settings {
             Ok(())
         } else {
             Err(format!(
-                "Faltam arquivos na pasta dos dados: {}",
+                "Missing files in the game data folder: {}",
                 missing.join(", ")
             ))
         }
@@ -124,7 +124,7 @@ impl Settings {
         let data = fs::canonicalize(&self.data).map_err(|e| e.to_string())?;
         let directory = executable
             .parent()
-            .ok_or("Executável sem pasta de origem")?;
+            .ok_or("The executable has no parent folder")?;
         let mut command = Command::new(&executable);
         command
             .current_dir(directory)
@@ -258,17 +258,17 @@ impl Launcher {
 
     fn launch(&mut self) -> Result<(), String> {
         if self.config.as_ref().is_ok_and(GameConfig::dirty) {
-            return Err("Salve ou recarregue as configurações antes de jogar.".into());
+            return Err("Save or reload your settings before playing.".into());
         }
         let mut command = self.settings.command()?;
         let data = Path::new(&self.settings.data);
         let executable = fs::canonicalize(&self.settings.executable).map_err(|e| e.to_string())?;
-        // --data-dir também altera onde o motor procura seus recursos adicionais.
+        // --data-dir also changes where the engine looks for its own resources.
         for name in ["devilutionx.mpq", "fonts.mpq"] {
             let source = executable.parent().unwrap().join(name);
             if source.is_file() && !has_file(data, name) {
                 fs::copy(&source, data.join(name))
-                    .map_err(|e| format!("Não foi possível copiar {name}: {e}"))?;
+                    .map_err(|e| format!("Could not copy {name}: {e}"))?;
             }
         }
         let path = log_path();
@@ -279,7 +279,7 @@ impl Launcher {
         self.child = Some(
             command
                 .spawn()
-                .map_err(|e| format!("Não foi possível iniciar: {e}"))?,
+                .map_err(|e| format!("Could not start the game: {e}"))?,
         );
         self.logs.clear();
         Ok(())
@@ -287,7 +287,10 @@ impl Launcher {
 
     fn open(&mut self, path: &Path) {
         if !path.exists() {
-            self.report(Err(format!("Ainda não existe: {}", path.display())), "");
+            self.report(
+                Err(format!("File or folder not found: {}", path.display())),
+                "",
+            );
             return;
         }
         let result = Command::new("xdg-open")
@@ -298,8 +301,8 @@ impl Launcher {
                     let _ = child.wait();
                 });
             })
-            .map_err(|e| format!("Não foi possível abrir {}: {e}", path.display()));
-        self.report(result, "Abrindo no aplicativo padrão…");
+            .map_err(|e| format!("Could not open {}: {e}", path.display()));
+        self.report(result, "Opening…");
     }
 
     fn poll(&mut self, ctx: &egui::Context) {
@@ -313,14 +316,14 @@ impl Launcher {
                 self.logs = fs::read_to_string(log_path()).unwrap_or_default();
                 self.error = !status.success();
                 self.message = if status.success() {
-                    "Jogo encerrado.".into()
+                    "Game closed.".into()
                 } else {
-                    format!("O jogo encerrou com {status}. Confira o registro abaixo.")
+                    format!("The game stopped with {status}. Check the log for details.")
                 };
             }
             Ok(None) => ctx.request_repaint_after(Duration::from_millis(500)),
             Err(error) => {
-                self.message = format!("Não foi possível consultar o jogo: {error}");
+                self.message = format!("Could not check the game status: {error}");
                 self.error = true;
                 ctx.request_repaint_after(Duration::from_secs(1));
             }
@@ -330,7 +333,7 @@ impl Launcher {
 
 fn load_texture(ctx: &egui::Context, name: &str, bytes: &[u8]) -> egui::TextureHandle {
     let image = image::load_from_memory(bytes)
-        .expect("Imagem incorporada inválida")
+        .expect("Invalid bundled image")
         .to_rgba8();
     ctx.load_texture(
         name,
@@ -419,7 +422,7 @@ impl Launcher {
         ui.painter().text(
             egui::pos2(left + 3.0, rect.bottom() - 64.0),
             egui::Align2::LEFT_BOTTOM,
-            "O clássico. Uma nova jornada.",
+            "A classic. A new adventure.",
             egui::FontId::proportional(15.0),
             MUTED,
         );
@@ -434,20 +437,20 @@ impl Launcher {
                     ui.vertical(|ui| {
                         ui.add_space(8.0);
                         let (status, color) = if running {
-                            ("Em jogo", GOLD)
+                            ("Game running", GOLD)
                         } else if dirty {
-                            ("Configurações não salvas", GOLD)
+                            ("Unsaved settings", GOLD)
                         } else if ready.is_ok() {
-                            ("Pronto para jogar", Color32::from_rgb(133, 183, 150))
+                            ("Ready to play", Color32::from_rgb(133, 183, 150))
                         } else {
-                            ("Instalação incompleta", GOLD)
+                            ("Setup incomplete", GOLD)
                         };
                         ui.label(RichText::new(status).size(13.0).color(color));
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if action_button(
                             ui,
-                            if running { "EM JOGO" } else { "JOGAR" },
+                            if running { "RUNNING" } else { "PLAY" },
                             !running && ready.is_ok() && !dirty,
                             Vec2::new(148.0, 48.0),
                         )
@@ -467,96 +470,187 @@ impl Launcher {
 
     fn settings_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let running = self.child.is_some();
-        egui::Frame::new().inner_margin(egui::Margin::symmetric(28,16)).show(ui,|ui| {
-            ui.heading("Configurações");
-            if running { ui.colored_label(GOLD,"Feche o jogo para editar as opções."); }
-            ui.horizontal_wrapped(|ui| {
-                for category in Category::ALL {
-                    if category==Category::Other && !self.config.as_ref().is_ok_and(|c|
-                        c.extra.iter().any(|o|option_catalog::category(o)==Category::Other && o.section!="GameMode")) { continue; }
-                    if ui.selectable_label(self.category==category,category.title()).clicked() {
-                        if self.category!=category { egui::Popup::close_all(ui.ctx()); }
-                        self.category=category;
-                    }
+        egui::Frame::new()
+            .inner_margin(egui::Margin::symmetric(28, 16))
+            .show(ui, |ui| {
+                ui.heading("Settings");
+                if running {
+                    ui.colored_label(GOLD, "Close the game to change settings.");
                 }
-            });
-            ui.add_space(8.0);
-            let mut reload=false;
-            egui::ScrollArea::vertical().id_salt(self.category).auto_shrink([false,false])
-                .max_height((ui.available_height()-82.0).max(100.0)).show(ui,|ui| {
-                ui.add_enabled_ui(!running,|ui| {
-                    match &mut self.config {
-                        Ok(config)=>{
-                            egui::Frame::new().fill(Color32::from_rgb(22,23,28)).corner_radius(10)
-                                .inner_margin(18.0).show(ui,|ui| {
-                                ui.set_min_width((ui.available_width()-2.0).max(0.0));
-                                options_ui::game_options(ui,config,self.category,&mut self.settings.skip_intro);
-                            });
+                ui.horizontal_wrapped(|ui| {
+                    for category in Category::ALL {
+                        if category == Category::Other
+                            && !self.config.as_ref().is_ok_and(|c| {
+                                c.extra.iter().any(|o| {
+                                    option_catalog::category(o) == Category::Other
+                                        && o.section != "GameMode"
+                                })
+                            })
+                        {
+                            continue;
                         }
-                        Err(error)=>{ui.colored_label(GOLD,error);}
-                    }
-                    ui.add_space(16.0);
-                    egui::CollapsingHeader::new("Avançado").show(ui,|ui| {
-                        ui.label("Executável do DevilutionX");
-                        ui.add(egui::TextEdit::singleline(&mut self.settings.executable).desired_width(f32::INFINITY));
-                        ui.label("Pasta dos dados e saves");
-                        if ui.add(egui::TextEdit::singleline(&mut self.settings.data).desired_width(f32::INFINITY)).lost_focus()
-                            && self.config.as_ref().is_ok_and(|c|c.path!=Path::new(&self.settings.data).join("diablo.ini")) { reload=true; }
-                        if ui.button("Detectar instalação").clicked() {
-                            let detected=Settings::detected();
-                            self.settings.executable=detected.executable;self.settings.data=detected.data;reload=true;
+                        if ui
+                            .selectable_label(self.category == category, category.title())
+                            .clicked()
+                        {
+                            if self.category != category {
+                                egui::Popup::close_all(ui.ctx());
+                            }
+                            self.category = category;
                         }
-                        let mut hellfire=self.settings.game==Game::Hellfire;
-                        if ui.checkbox(&mut hellfire,"Usar expansão Hellfire").changed() {
-                            self.settings.game=if hellfire {Game::Hellfire} else {Game::Diablo};
-                        }
-                        if hellfire {ui.small("Requer os quatro arquivos MPQ da expansão na pasta dos dados.");}
-                        if let Ok(config)=&mut self.config {
-                            egui::CollapsingHeader::new("Opções da expansão e demonstração").show(ui,|ui| {
-                                options_ui::expansion_options(ui, config, self.settings.skip_intro);
-                            });
-                        }
-                        if let Err(error)=self.settings.validate() {ui.colored_label(GOLD,error);}
-                    });
-                });
-                egui::CollapsingHeader::new("Arquivos e diagnóstico").show(ui,|ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        if ui.button("Dados e saves").clicked() {self.open(&PathBuf::from(&self.settings.data));}
-                        if ui.button("diablo.ini").clicked() {self.open(&Path::new(&self.settings.data).join("diablo.ini"));}
-                        if ui.button("Registro").clicked() {self.open(&log_path());}
-                    });
-                    ui.hyperlink_to("Como obter os arquivos do jogo","https://devilutionx.com/mpq");
-                    if !self.logs.is_empty() {
-                        ui.add(egui::Label::new(RichText::new(&self.logs).monospace()).selectable(true));
                     }
                 });
-            });
-            ui.add_space(10.0);
-            let mut save=false;
-            ui.horizontal(|ui| {
-                save=action_button(ui,"Salvar alterações",!running,Vec2::new(162.0,36.0)).clicked();
-                if ui.add_enabled(!running,egui::Button::new("Recarregar")).clicked() {reload=true;}
-            });
-            if reload {
-                egui::Popup::close_all(ui.ctx());
-                self.reload_config();self.report(Ok(()),"Configurações recarregadas.");
-            }
-            if save {
-                let expected=Path::new(&self.settings.data).join("diablo.ini");
-                let result=match &mut self.config {
-                    Ok(config) if config.path==expected=>config.save(),
-                    Ok(_)=>Err("A pasta dos dados mudou. Clique em Recarregar antes de salvar.".into()),
-                    Err(error)=>Err(error.clone()),
-                };
-                if result.is_ok() && let Some(storage)=frame.storage_mut() {
-                    eframe::set_value(storage,"settings",&self.settings);storage.flush();
+                ui.add_space(8.0);
+                let mut reload = false;
+                egui::ScrollArea::vertical()
+                    .id_salt(self.category)
+                    .auto_shrink([false, false])
+                    .max_height((ui.available_height() - 82.0).max(100.0))
+                    .show(ui, |ui| {
+                        ui.add_enabled_ui(!running, |ui| {
+                            match &mut self.config {
+                                Ok(config) => {
+                                    egui::Frame::new()
+                                        .fill(Color32::from_rgb(22, 23, 28))
+                                        .corner_radius(10)
+                                        .inner_margin(18.0)
+                                        .show(ui, |ui| {
+                                            ui.set_min_width((ui.available_width() - 2.0).max(0.0));
+                                            options_ui::game_options(
+                                                ui,
+                                                config,
+                                                self.category,
+                                                &mut self.settings.skip_intro,
+                                            );
+                                        });
+                                }
+                                Err(error) => {
+                                    ui.colored_label(GOLD, error);
+                                }
+                            }
+                            ui.add_space(16.0);
+                            egui::CollapsingHeader::new("Advanced").show(ui, |ui| {
+                                ui.label("DevilutionX executable");
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut self.settings.executable)
+                                        .desired_width(f32::INFINITY),
+                                );
+                                ui.label("Game data and saves folder");
+                                if ui
+                                    .add(
+                                        egui::TextEdit::singleline(&mut self.settings.data)
+                                            .desired_width(f32::INFINITY),
+                                    )
+                                    .lost_focus()
+                                    && self.config.as_ref().is_ok_and(|c| {
+                                        c.path != Path::new(&self.settings.data).join("diablo.ini")
+                                    })
+                                {
+                                    reload = true;
+                                }
+                                if ui.button("Find installation").clicked() {
+                                    let detected = Settings::detected();
+                                    self.settings.executable = detected.executable;
+                                    self.settings.data = detected.data;
+                                    reload = true;
+                                }
+                                let mut hellfire = self.settings.game == Game::Hellfire;
+                                if ui
+                                    .checkbox(&mut hellfire, "Enable Hellfire expansion")
+                                    .changed()
+                                {
+                                    self.settings.game = if hellfire {
+                                        Game::Hellfire
+                                    } else {
+                                        Game::Diablo
+                                    };
+                                }
+                                if hellfire {
+                                    ui.small(
+                                        "Add the four Hellfire data files to your game folder.",
+                                    );
+                                }
+                                if let Ok(config) = &mut self.config {
+                                    egui::CollapsingHeader::new("Expansion and demo options").show(
+                                        ui,
+                                        |ui| {
+                                            options_ui::expansion_options(
+                                                ui,
+                                                config,
+                                                self.settings.skip_intro,
+                                            );
+                                        },
+                                    );
+                                }
+                                if let Err(error) = self.settings.validate() {
+                                    ui.colored_label(GOLD, error);
+                                }
+                            });
+                        });
+                        egui::CollapsingHeader::new("Files and troubleshooting").show(ui, |ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                if ui.button("Data and saves").clicked() {
+                                    self.open(&PathBuf::from(&self.settings.data));
+                                }
+                                if ui.button("diablo.ini").clicked() {
+                                    self.open(&Path::new(&self.settings.data).join("diablo.ini"));
+                                }
+                                if ui.button("Game log").clicked() {
+                                    self.open(&log_path());
+                                }
+                            });
+                            ui.hyperlink_to("Get the game files", "https://devilutionx.com/mpq");
+                            if !self.logs.is_empty() {
+                                ui.add(
+                                    egui::Label::new(RichText::new(&self.logs).monospace())
+                                        .selectable(true),
+                                );
+                            }
+                        });
+                    });
+                ui.add_space(10.0);
+                let mut save = false;
+                ui.horizontal(|ui| {
+                    save = action_button(ui, "Save changes", !running, Vec2::new(162.0, 36.0))
+                        .clicked();
+                    if ui
+                        .add_enabled(!running, egui::Button::new("Reload"))
+                        .clicked()
+                    {
+                        reload = true;
+                    }
+                });
+                if reload {
+                    egui::Popup::close_all(ui.ctx());
+                    self.reload_config();
+                    self.report(Ok(()), "Settings reloaded.");
                 }
-                self.report(result,"Configurações salvas.");
-            }
-            if !self.message.is_empty() {
-                ui.colored_label(if self.error {Color32::from_rgb(245,139,128)} else {GOLD},&self.message);
-            }
-        });
+                if save {
+                    let expected = Path::new(&self.settings.data).join("diablo.ini");
+                    let result = match &mut self.config {
+                        Ok(config) if config.path == expected => config.save(),
+                        Ok(_) => Err("The data folder changed. Click Reload before saving.".into()),
+                        Err(error) => Err(error.clone()),
+                    };
+                    if result.is_ok()
+                        && let Some(storage) = frame.storage_mut()
+                    {
+                        eframe::set_value(storage, "settings", &self.settings);
+                        storage.flush();
+                    }
+                    self.report(result, "Settings saved.");
+                }
+                if !self.message.is_empty() {
+                    ui.colored_label(
+                        if self.error {
+                            Color32::from_rgb(245, 139, 128)
+                        } else {
+                            GOLD
+                        },
+                        &self.message,
+                    );
+                }
+            });
     }
 }
 
@@ -619,7 +713,7 @@ impl eframe::App for Launcher {
                     ));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
-                            .selectable_label(self.tab == Tab::Settings, "Configurações")
+                            .selectable_label(self.tab == Tab::Settings, "Settings")
                             .clicked()
                         {
                             if self.tab != Tab::Settings
@@ -630,10 +724,7 @@ impl eframe::App for Launcher {
                             egui::Popup::close_all(ui.ctx());
                             self.tab = Tab::Settings;
                         }
-                        if ui
-                            .selectable_label(self.tab == Tab::Play, "Jogar")
-                            .clicked()
-                        {
+                        if ui.selectable_label(self.tab == Tab::Play, "Play").clicked() {
                             egui::Popup::close_all(ui.ctx());
                             self.tab = Tab::Play;
                         }
@@ -658,7 +749,7 @@ fn main() -> eframe::Result {
                     eframe::icon_data::from_png_bytes(include_bytes!(
                         "../assets/devilutionx-logo.png"
                     ))
-                    .expect("Ícone incorporado inválido"),
+                    .expect("Invalid bundled icon"),
                 )
                 .with_inner_size([1000.0, 680.0])
                 .with_min_inner_size([620.0, 540.0]),
@@ -684,20 +775,20 @@ mod tests {
                     .unwrap()
                     .as_nanos()
             ));
-            fs::create_dir_all(p.join("dados com espaços")).unwrap();
+            fs::create_dir_all(p.join("data with spaces")).unwrap();
             fs::write(p.join("motor"), "fixture").unwrap();
             Self(p)
         }
         fn settings(&self) -> Settings {
             Settings {
                 executable: self.0.join("motor").display().to_string(),
-                data: self.0.join("dados com espaços").display().to_string(),
+                data: self.0.join("data with spaces").display().to_string(),
                 skip_intro: true,
                 ..Settings::default()
             }
         }
         fn file(&self, name: &str) {
-            fs::write(self.0.join("dados com espaços").join(name), b"MPQ").unwrap();
+            fs::write(self.0.join("data with spaces").join(name), b"MPQ").unwrap();
         }
     }
     impl Drop for Fixture {
@@ -772,7 +863,7 @@ mod tests {
         }
         let mut storage = Memory(Default::default());
         let settings = Settings {
-            data: "/dados com espaços".into(),
+            data: "/data with spaces".into(),
             game: Game::Hellfire,
             ..Settings::default()
         };

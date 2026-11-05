@@ -3,7 +3,7 @@ name = "devilution-launcher"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
-description = "Launcher Linux para DevilutionX, feito em Rust e egui"
+description = "A simple Linux launcher for DevilutionX, built with Rust and egui"
 
 [dependencies]
 eframe = { version = "0.33.3", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "persistence"] }

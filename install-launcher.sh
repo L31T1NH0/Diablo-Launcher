@@ -2,7 +2,7 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 if ! command -v cargo >/dev/null; then
-    echo 'Instale Rust 1.88 ou superior: https://rustup.rs' >&2
+    echo 'Install Rust 1.88 or newer: https://rustup.rs' >&2
     exit 1
 fi
 cargo build --release --locked
@@ -16,8 +16,8 @@ exe = str(home / '.local/bin/devilution-launcher')
 exe = exe.replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$').replace('%', '%%')
 (home / '.local/share/applications/devilution-launcher.desktop').write_text(
     '[Desktop Entry]\nType=Application\nName=Devilution Launcher\n'
-    'Comment=Jogue Diablo I e Hellfire com DevilutionX\n'
+    'Comment=Play Diablo I and Hellfire with DevilutionX\n'
     f'Exec="{exe}"\nIcon=devilution-launcher\nCategories=Game;RolePlaying;\nTerminal=false\n'
 )
 PY
-echo 'Pronto! Abra Devilution Launcher pelo menu de aplicativos.'
+echo 'Done! Open Devilution Launcher from your applications menu.'

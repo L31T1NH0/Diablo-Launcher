@@ -104,7 +104,7 @@ fn value<'a>(text: &'a str, section: &str, key: &str) -> Option<&'a str> {
     result
 }
 
-// Só substitui a chave editada; comentários e opções desconhecidas permanecem.
+// Replace only the edited key, preserving comments and unknown options.
 fn set_value(text: &str, section: &str, key: &str, val: &str) -> String {
     let newline = if text.contains("\r\n") { "\r\n" } else { "\n" };
     let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
@@ -154,7 +154,7 @@ fn read(path: &Path) -> Result<Option<String>, String> {
     match fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(format!("Não foi possível ler {}: {e}", path.display())),
+        Err(e) => Err(format!("Could not read {}: {e}", path.display())),
     }
 }
 
@@ -280,13 +280,10 @@ impl GameConfig {
         if !(640..=16384).contains(&self.options.width)
             || !(480..=16384).contains(&self.options.height)
         {
-            return Err("Resolução fora do intervalo permitido (640×480 a 16384×16384).".into());
+            return Err("Choose a resolution between 640×480 and 16384×16384.".into());
         }
         if read(&self.path)? != self.original {
-            return Err(
-                "O diablo.ini foi alterado fora do launcher. Clique em Recarregar antes de salvar."
-                    .into(),
-            );
+            return Err("Another app changed diablo.ini. Click Reload before saving.".into());
         }
         let mut text = self.original.clone().unwrap_or_default();
         for ((section, key, val), (_, _, old)) in self
@@ -301,10 +298,7 @@ impl GameConfig {
         }
         for option in self.extra.iter().filter(|option| option.changed()) {
             if option.value.contains(['\n', '\r', '\0']) {
-                return Err(format!(
-                    "{}: o valor deve ocupar uma única linha.",
-                    option.key
-                ));
+                return Err(format!("{}: enter a single-line value.", option.key));
             }
             crate::option_catalog::validate(option)?;
             text = set_value(&text, &option.section, &option.key, &option.value);
@@ -316,7 +310,7 @@ impl GameConfig {
             .write(true)
             .create_new(true)
             .open(&temp)
-            .map_err(|e| format!("Não foi possível preparar a gravação: {e}"))?;
+            .map_err(|e| format!("Could not prepare the settings file: {e}"))?;
         let result = (|| {
             if self.original.is_some() {
                 fs::copy(&self.path, self.path.with_extension("ini.launcher.bak"))?;
@@ -328,7 +322,7 @@ impl GameConfig {
         })();
         if let Err(e) = result {
             let _ = fs::remove_file(&temp);
-            return Err(format!("Não foi possível salvar as configurações: {e}"));
+            return Err(format!("Could not save settings: {e}"));
         }
         self.original = Some(text);
         self.loaded = self.options.clone();
@@ -346,8 +340,7 @@ mod tests {
 
     #[test]
     fn patches_only_selected_keys_and_preserves_crlf() {
-        let ini =
-            "; comentário\r\n[Graphics]\r\nWidth=640\r\nCustom=keep\r\n[Other]\r\nWidth=5\r\n";
+        let ini = "; comment\r\n[Graphics]\r\nWidth=640\r\nCustom=keep\r\n[Other]\r\nWidth=5\r\n";
         assert_eq!(
             set_value(ini, "Graphics", "Width", "1280"),
             ini.replace("Width=640", "Width=1280")
@@ -401,7 +394,7 @@ mod tests {
         );
         config.options.sound = 50;
         fs::write(&path, "external edit").unwrap();
-        assert!(config.save().unwrap_err().contains("alterado fora"));
+        assert!(config.save().unwrap_err().contains("Another app changed"));
         assert_eq!(fs::read_to_string(&path).unwrap(), "external edit");
         fs::remove_dir_all(dir).unwrap();
     }
@@ -418,7 +411,7 @@ mod tests {
             assert!(
                 primary.iter().any(|(s, k, _)| *s == section && *k == key)
                     || extras.iter().any(|o| o.section == section && o.key == key),
-                "{section}.{key} ausente"
+                "Missing {section}.{key}"
             );
         }
         for option in &extras {
@@ -471,7 +464,7 @@ mod tests {
             .find(|o| o.key == "Port")
             .unwrap()
             .value = "70000".into();
-        assert!(config.save().unwrap_err().contains("inválido"));
+        assert!(config.save().unwrap_err().contains("Invalid"));
         config
             .extra
             .iter_mut()
@@ -484,7 +477,7 @@ mod tests {
             .find(|o| o.key == "Future")
             .unwrap()
             .value = "x\nInjected=yes".into();
-        assert!(config.save().unwrap_err().contains("única linha"));
+        assert!(config.save().unwrap_err().contains("single-line"));
         fs::remove_dir_all(dir).unwrap();
     }
 
