@@ -20,7 +20,7 @@ pub(crate) struct Launcher {
     pub(crate) logs: String,
     pub(crate) tab: Tab,
     pub(crate) config: Result<GameConfig, String>,
-    pub(crate) hero: egui::TextureHandle,
+    pub(crate) hero: ui::hero::Hero,
     pub(crate) logo: egui::TextureHandle,
     pub(crate) wordmark: egui::TextureHandle,
     pub(crate) category: Category,
@@ -39,11 +39,7 @@ impl Launcher {
             .unwrap_or_else(Settings::detected);
         let config = GameConfig::load(Path::new(&settings.data).join("diablo.ini"));
         Self {
-            hero: load_texture(
-                &cc.egui_ctx,
-                "diablo-art",
-                include_bytes!("../assets/diablo-hero.jpg"),
-            ),
+            hero: ui::hero::Hero::new(&cc.egui_ctx),
             logo: load_texture(
                 &cc.egui_ctx,
                 "devilution-logo",

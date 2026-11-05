@@ -17,7 +17,9 @@ Install Diablo I, choose your settings, and return to Tristram — all from one 
 3. Choose **Diablo** or **Diablo + Hellfire**, then click **Install missing files**.
 4. Return to **Play** and use the arrow inside the Play button to choose your game.
 
-The Play button shows the selected game. Its arrow lets you switch when both games are installed. Existing game files and saves are kept. You can also use your own installation under **Settings → Advanced**.
+The Play button shows the selected game. Switching editions smoothly changes the hero artwork, title, and tagline. Its arrow lets you switch when both games are installed. Existing game files and saves are kept. You can also use your own installation under **Settings → Advanced**.
+
+![Hellfire selected in the launcher](assets/hellfire-screen.png)
 
 ![Installing the game](assets/install.png)
 
@@ -111,9 +113,9 @@ Older Fedora releases may use `SDL2` instead of `sdl2-compat`. Other distributio
 <summary>Developer checks</summary>
 
 ```bash
-cargo run --locked
-cargo test --locked
-cargo clippy --locked --all-targets -- -D warnings
+cargo run --release --locked
+cargo test --release --locked
+cargo clippy --release --locked --all-targets -- -D warnings
 cargo fmt --check
 ```
 
@@ -122,7 +124,7 @@ Fourteen offline tests cover settings, edition detection, local HTTP downloads, 
 The network test is opt-in because it downloads about 700 MB:
 
 ```bash
-cargo test --locked live_fresh_install_from_configured_sources -- --ignored --nocapture
+cargo test --release --locked live_fresh_install_from_configured_sources -- --ignored --nocapture
 ```
 
 </details>

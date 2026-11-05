@@ -7,7 +7,10 @@ if ! command -v cargo >/dev/null; then
 fi
 cargo build --release --locked
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/512x512/apps"
-install -m 755 target/release/devilution-launcher "$HOME/.local/bin/devilution-launcher"
+launcher_stage=$(mktemp "$HOME/.local/bin/.devilution-launcher.XXXXXX")
+trap 'rm -f "$launcher_stage"' EXIT
+install -m 755 target/release/devilution-launcher "$launcher_stage"
+mv -f "$launcher_stage" "$HOME/.local/bin/devilution-launcher"
 install -m 644 assets/devilutionx-logo.png "$HOME/.local/share/icons/hicolor/512x512/apps/devilution-launcher.png"
 python3 - <<'PY'
 from pathlib import Path

@@ -1,3 +1,4 @@
+pub(crate) mod hero;
 mod home;
 mod install;
 pub(crate) mod options;

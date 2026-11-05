@@ -3,9 +3,10 @@
 Images are bundled with the app, so they work offline.
 
 - **Diablo artwork** (`diablo-hero.jpg`): Blizzard Entertainment, from the [Blizzard Classic Games press kit](https://blizzard.gamespress.com/Kit/Details/Blizzard-Classic-Games-Now-Available-on-Battlenet).
+- **Hellfire artwork** (`hellfire-hero.png`): the original `hellfire.png` supplied by the project owner, used without changes.
 - **DevilutionX icon** (`devilutionx-logo.png`): the [official DevilutionX project](https://github.com/diasurgical/DevilutionX/blob/1.5.5/Packaging/resources/icon.png), version 1.5.5.
 - **DevilutionX wordmark** (`devilutionx-wordmark.png`): the original PNG supplied by the project owner, used without changes.
-- **Screenshots** (`launcher.png`, `install.png`, `settings.png`): captured from this launcher.
+- **Screenshots** (`launcher.png`, `hellfire-screen.png`, `install.png`, `settings.png`): captured from this launcher.
 
 Images and trademarks belong to their respective owners. This is an independent project.
 
