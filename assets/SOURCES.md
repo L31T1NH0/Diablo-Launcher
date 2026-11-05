@@ -8,3 +8,5 @@ As imagens são incorporadas ao binário; nenhuma imagem é buscada durante o us
   URL: https://raw.githubusercontent.com/diasurgical/DevilutionX/1.5.5/Packaging/resources/icon.png
 
 As marcas e imagens pertencem aos seus respectivos titulares. Este launcher é um projeto independente.
+
+- `devilutionx-wordmark.png`: logo tipográfica em PNG fornecida pelo usuário em Downloads. O arquivo original foi incorporado sem alterações; o ícone oficial à esquerda foi mantido separado.

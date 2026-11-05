@@ -1,7 +1,10 @@
 mod game_config;
+mod option_catalog;
+mod options_ui;
 
 use eframe::egui::{self, Color32, RichText, Vec2};
 use game_config::GameConfig;
+use option_catalog::Category;
 use serde::{Deserialize, Serialize};
 use std::{
     env, fs,
@@ -11,6 +14,7 @@ use std::{
 };
 
 const GOLD: Color32 = Color32::from_rgb(225, 166, 92);
+const PRIMARY: Color32 = Color32::from_rgb(151, 39, 48);
 const BACKGROUND: Color32 = Color32::from_rgb(14, 15, 18);
 
 #[derive(Clone, Copy, PartialEq)]
@@ -169,6 +173,8 @@ struct Launcher {
     config: Result<GameConfig, String>,
     hero: egui::TextureHandle,
     logo: egui::TextureHandle,
+    wordmark: egui::TextureHandle,
+    category: Category,
 }
 
 impl Launcher {
@@ -177,7 +183,28 @@ impl Launcher {
         visuals.panel_fill = BACKGROUND;
         visuals.override_text_color = Some(Color32::from_rgb(230, 229, 226));
         visuals.window_fill = Color32::from_rgb(22, 23, 27);
-        visuals.selection.bg_fill = Color32::from_rgb(75, 53, 35);
+        visuals.selection.bg_fill = Color32::from_rgb(76, 36, 43);
+        visuals.selection.stroke = egui::Stroke::new(1.0_f32, Color32::from_rgb(225, 122, 126));
+        for widget in [
+            &mut visuals.widgets.inactive,
+            &mut visuals.widgets.hovered,
+            &mut visuals.widgets.active,
+        ] {
+            widget.corner_radius = egui::CornerRadius::same(6);
+            widget.fg_stroke.color = Color32::from_rgb(232, 230, 226);
+        }
+        visuals.widgets.inactive.weak_bg_fill = Color32::from_rgb(31, 33, 40);
+        visuals.widgets.inactive.bg_fill = Color32::from_rgb(31, 33, 40);
+        visuals.widgets.inactive.bg_stroke =
+            egui::Stroke::new(1.0_f32, Color32::from_rgb(65, 65, 74));
+        visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(47, 48, 57);
+        visuals.widgets.hovered.bg_fill = Color32::from_rgb(47, 48, 57);
+        visuals.widgets.hovered.bg_stroke =
+            egui::Stroke::new(1.0_f32, Color32::from_rgb(150, 76, 83));
+        visuals.widgets.active.weak_bg_fill = Color32::from_rgb(69, 37, 44);
+        visuals.widgets.active.bg_fill = Color32::from_rgb(69, 37, 44);
+        visuals.widgets.active.bg_stroke =
+            egui::Stroke::new(1.0_f32, Color32::from_rgb(203, 100, 105));
         visuals.widgets.noninteractive.bg_stroke.color = Color32::from_rgb(45, 45, 49);
         cc.egui_ctx.set_visuals(visuals);
         cc.egui_ctx.style_mut(|s| {
@@ -200,6 +227,12 @@ impl Launcher {
                 "devilution-logo",
                 include_bytes!("../assets/devilutionx-logo.png"),
             ),
+            wordmark: load_texture(
+                &cc.egui_ctx,
+                "devilution-wordmark",
+                include_bytes!("../assets/devilutionx-wordmark.png"),
+            ),
+            category: Category::Video,
             tab: Tab::Play,
             config,
             settings,
@@ -366,6 +399,15 @@ impl Launcher {
             Color32::TRANSPARENT,
             BACKGROUND,
         );
+        gradient(
+            ui.painter(),
+            egui::Rect::from_min_max(
+                rect.left_top(),
+                egui::pos2(rect.right(), rect.top() + (rect.height() * 0.3).min(120.0)),
+            ),
+            BACKGROUND,
+            Color32::TRANSPARENT,
+        );
         let left = rect.left() + 32.0;
         ui.painter().text(
             egui::pos2(left, rect.bottom() - 90.0),
@@ -403,20 +445,13 @@ impl Launcher {
                         ui.label(RichText::new(status).size(13.0).color(color));
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .add_enabled(
-                                !running && ready.is_ok() && !dirty,
-                                egui::Button::new(
-                                    RichText::new(if running { "EM JOGO" } else { "JOGAR" })
-                                        .strong()
-                                        .size(18.0)
-                                        .color(BACKGROUND),
-                                )
-                                .fill(GOLD)
-                                .corner_radius(8)
-                                .min_size(Vec2::new(148.0, 48.0)),
-                            )
-                            .clicked()
+                        if action_button(
+                            ui,
+                            if running { "EM JOGO" } else { "JOGAR" },
+                            !running && ready.is_ok() && !dirty,
+                            Vec2::new(148.0, 48.0),
+                        )
+                        .clicked()
                         {
                             let result = self.launch();
                             self.report(result, "");
@@ -432,291 +467,118 @@ impl Launcher {
 
     fn settings_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let running = self.child.is_some();
-        egui::Frame::new()
-            .inner_margin(egui::Margin::symmetric(32, 20))
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.heading("Configurações");
-                    ui.label(
-                        RichText::new(if running {
-                            "Feche o jogo para editar as opções."
-                        } else {
-                            "Ajuste o jogo ao seu jeito."
-                        })
-                        .color(MUTED),
-                    );
-                    ui.add_space(14.0);
-                    let mut save = false;
-                    let mut reload = false;
-                    ui.add_enabled_ui(!running, |ui| {
-                        if let Ok(config) = &mut self.config {
-                            let options = &mut config.options;
-                            section(ui, "Vídeo", |ui| {
-                                egui::Grid::new("video-options")
-                                    .num_columns(2)
-                                    .spacing([24.0, 14.0])
-                                    .show(ui, |ui| {
-                                        ui.label("Resolução");
-                                        egui::ComboBox::from_id_salt("resolution")
-                                            .selected_text(format!(
-                                                "{} × {}",
-                                                options.width, options.height
-                                            ))
-                                            .show_ui(ui, |ui| {
-                                                for (width, height) in [
-                                                    (640, 480),
-                                                    (960, 540),
-                                                    (1280, 720),
-                                                    (1600, 900),
-                                                    (1920, 1080),
-                                                    (2560, 1440),
-                                                    (3840, 2160),
-                                                ] {
-                                                    if ui
-                                                        .selectable_label(
-                                                            (options.width, options.height)
-                                                                == (width, height),
-                                                            format!("{width} × {height}"),
-                                                        )
-                                                        .clicked()
-                                                    {
-                                                        options.width = width;
-                                                        options.height = height;
-                                                    }
-                                                }
-                                            });
-                                        ui.end_row();
-                                        ui.label("Exibição");
-                                        ui.checkbox(&mut options.fullscreen, "Tela cheia");
-                                        ui.end_row();
-                                        ui.label("Escala");
-                                        ui.checkbox(
-                                            &mut options.upscale,
-                                            "Ajustar imagem à janela",
-                                        );
-                                        ui.end_row();
-                                        ui.label("Quadros por segundo");
-                                        egui::ComboBox::from_id_salt("frames")
-                                            .selected_text(match options.frame_control {
-                                                0 => "Sem limite",
-                                                1 => "Sincronização vertical",
-                                                2 => "Limitar FPS",
-                                                _ => "Personalizado",
-                                            })
-                                            .show_ui(ui, |ui| {
-                                                ui.selectable_value(
-                                                    &mut options.frame_control,
-                                                    0,
-                                                    "Sem limite",
-                                                );
-                                                ui.selectable_value(
-                                                    &mut options.frame_control,
-                                                    1,
-                                                    "Sincronização vertical",
-                                                );
-                                                ui.selectable_value(
-                                                    &mut options.frame_control,
-                                                    2,
-                                                    "Limitar FPS",
-                                                );
-                                            });
-                                        ui.end_row();
-                                    });
-                            });
-                            section(ui, "Áudio", |ui| {
-                                egui::Grid::new("audio-options").spacing([24.0, 14.0]).show(
-                                    ui,
-                                    |ui| {
-                                        ui.label("Música");
-                                        ui.add(
-                                            egui::Slider::new(&mut options.music, 0..=100)
-                                                .suffix(" %"),
-                                        );
-                                        ui.end_row();
-                                        ui.label("Efeitos sonoros");
-                                        ui.add(
-                                            egui::Slider::new(&mut options.sound, 0..=100)
-                                                .suffix(" %"),
-                                        );
-                                        ui.end_row();
-                                    },
-                                );
-                            });
-                            section(ui, "Jogo", |ui| {
-                                ui.horizontal(|ui| {
-                                    ui.label("Idioma");
-                                    egui::ComboBox::from_id_salt("language")
-                                        .selected_text(match options.language.as_str() {
-                                            "pt_BR" => "Português (Brasil)",
-                                            "en" => "English",
-                                            "es" => "Español",
-                                            other => other,
-                                        })
-                                        .show_ui(ui, |ui| {
-                                            for (code, label) in [
-                                                ("pt_BR", "Português (Brasil)"),
-                                                ("en", "English"),
-                                                ("es", "Español"),
-                                            ] {
-                                                ui.selectable_value(
-                                                    &mut options.language,
-                                                    code.into(),
-                                                    label,
-                                                );
-                                            }
-                                        });
-                                });
-                                ui.checkbox(
-                                    &mut self.settings.skip_intro,
-                                    "Pular vídeos de abertura",
-                                );
-                                ui.checkbox(&mut options.run_in_town, "Correr na cidade");
-                                ui.checkbox(&mut options.auto_gold, "Coletar ouro automaticamente");
-                                ui.checkbox(&mut options.quick_cast, "Lançar magias pelos atalhos");
-                            });
-                        } else if let Err(error) = &self.config {
-                            ui.colored_label(GOLD, error);
-                        }
-                        egui::CollapsingHeader::new("Avançado").show(ui, |ui| {
-                            ui.label("Executável do DevilutionX");
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.settings.executable)
-                                    .desired_width(f32::INFINITY),
-                            );
-                            ui.label("Pasta dos dados e saves");
-                            if ui
-                                .add(
-                                    egui::TextEdit::singleline(&mut self.settings.data)
-                                        .desired_width(f32::INFINITY),
-                                )
-                                .lost_focus()
-                                && self.config.as_ref().is_ok_and(|c| {
-                                    c.path != Path::new(&self.settings.data).join("diablo.ini")
-                                })
-                            {
-                                reload = true;
-                            }
-                            if ui.button("Detectar instalação").clicked() {
-                                let detected = Settings::detected();
-                                self.settings.executable = detected.executable;
-                                self.settings.data = detected.data;
-                                reload = true;
-                            }
-                            if let Ok(config) = &mut self.config {
-                                ui.checkbox(&mut config.options.show_fps, "Mostrar FPS no jogo");
-                            }
-                            let mut hellfire = self.settings.game == Game::Hellfire;
-                            if ui
-                                .checkbox(&mut hellfire, "Usar expansão Hellfire")
-                                .changed()
-                            {
-                                self.settings.game = if hellfire {
-                                    Game::Hellfire
-                                } else {
-                                    Game::Diablo
-                                };
-                            }
-                            if hellfire {
-                                ui.small(
-                                    "Requer os quatro arquivos MPQ da expansão na pasta dos dados.",
-                                );
-                            }
-                            if let Err(error) = self.settings.validate() {
-                                ui.colored_label(GOLD, error);
-                            }
-                        });
-                        ui.add_space(14.0);
-                        ui.horizontal(|ui| {
-                            save = ui
-                                .add(
-                                    egui::Button::new(
-                                        RichText::new("Salvar alterações").color(BACKGROUND),
-                                    )
-                                    .fill(GOLD)
-                                    .corner_radius(6),
-                                )
-                                .clicked();
-                            reload |= ui.button("Recarregar").clicked();
-                        });
-                    });
-                    if reload {
-                        self.reload_config();
-                        self.report(Ok(()), "Configurações recarregadas.");
+        egui::Frame::new().inner_margin(egui::Margin::symmetric(28,16)).show(ui,|ui| {
+            ui.heading("Configurações");
+            if running { ui.colored_label(GOLD,"Feche o jogo para editar as opções."); }
+            ui.horizontal_wrapped(|ui| {
+                for category in Category::ALL {
+                    if category==Category::Other && !self.config.as_ref().is_ok_and(|c|
+                        c.extra.iter().any(|o|option_catalog::category(o)==Category::Other && o.section!="GameMode")) { continue; }
+                    if ui.selectable_label(self.category==category,category.title()).clicked() {
+                        if self.category!=category { egui::Popup::close_all(ui.ctx()); }
+                        self.category=category;
                     }
-                    if save {
-                        let expected = Path::new(&self.settings.data).join("diablo.ini");
-                        let result = match &mut self.config {
-                            Ok(config) if config.path == expected => config.save(),
-                            Ok(_) => Err(
-                                "A pasta dos dados mudou. Clique em Recarregar antes de salvar."
-                                    .into(),
-                            ),
-                            Err(error) => Err(error.clone()),
-                        };
-                        if result.is_ok()
-                            && let Some(storage) = frame.storage_mut()
-                        {
-                            eframe::set_value(storage, "settings", &self.settings);
-                            storage.flush();
+                }
+            });
+            ui.add_space(8.0);
+            let mut reload=false;
+            egui::ScrollArea::vertical().id_salt(self.category).auto_shrink([false,false])
+                .max_height((ui.available_height()-82.0).max(100.0)).show(ui,|ui| {
+                ui.add_enabled_ui(!running,|ui| {
+                    match &mut self.config {
+                        Ok(config)=>{
+                            egui::Frame::new().fill(Color32::from_rgb(22,23,28)).corner_radius(10)
+                                .inner_margin(18.0).show(ui,|ui| {
+                                ui.set_min_width((ui.available_width()-2.0).max(0.0));
+                                options_ui::game_options(ui,config,self.category,&mut self.settings.skip_intro);
+                            });
                         }
-                        self.report(result, "Configurações salvas.");
+                        Err(error)=>{ui.colored_label(GOLD,error);}
                     }
-                    if !self.message.is_empty() {
-                        ui.add_space(8.0);
-                        ui.colored_label(
-                            if self.error {
-                                Color32::from_rgb(245, 139, 128)
-                            } else {
-                                GOLD
-                            },
-                            &self.message,
-                        );
-                    }
-                    ui.add_space(14.0);
-                    egui::CollapsingHeader::new("Arquivos e diagnóstico").show(ui, |ui| {
-                        ui.horizontal_wrapped(|ui| {
-                            if ui.button("Dados e saves").clicked() {
-                                self.open(&PathBuf::from(&self.settings.data));
-                            }
-                            if ui.button("diablo.ini").clicked() {
-                                self.open(&Path::new(&self.settings.data).join("diablo.ini"));
-                            }
-                            if ui.button("Registro").clicked() {
-                                self.open(&log_path());
-                            }
-                        });
-                        ui.hyperlink_to(
-                            "Como obter os arquivos do jogo",
-                            "https://devilutionx.com/mpq",
-                        );
-                        if !self.logs.is_empty() {
-                            egui::ScrollArea::vertical()
-                                .max_height(150.0)
-                                .show(ui, |ui| {
-                                    ui.add(
-                                        egui::Label::new(RichText::new(&self.logs).monospace())
-                                            .selectable(true),
-                                    );
-                                });
+                    ui.add_space(16.0);
+                    egui::CollapsingHeader::new("Avançado").show(ui,|ui| {
+                        ui.label("Executável do DevilutionX");
+                        ui.add(egui::TextEdit::singleline(&mut self.settings.executable).desired_width(f32::INFINITY));
+                        ui.label("Pasta dos dados e saves");
+                        if ui.add(egui::TextEdit::singleline(&mut self.settings.data).desired_width(f32::INFINITY)).lost_focus()
+                            && self.config.as_ref().is_ok_and(|c|c.path!=Path::new(&self.settings.data).join("diablo.ini")) { reload=true; }
+                        if ui.button("Detectar instalação").clicked() {
+                            let detected=Settings::detected();
+                            self.settings.executable=detected.executable;self.settings.data=detected.data;reload=true;
                         }
+                        let mut hellfire=self.settings.game==Game::Hellfire;
+                        if ui.checkbox(&mut hellfire,"Usar expansão Hellfire").changed() {
+                            self.settings.game=if hellfire {Game::Hellfire} else {Game::Diablo};
+                        }
+                        if hellfire {ui.small("Requer os quatro arquivos MPQ da expansão na pasta dos dados.");}
+                        if let Ok(config)=&mut self.config {
+                            egui::CollapsingHeader::new("Opções da expansão e demonstração").show(ui,|ui| {
+                                options_ui::expansion_options(ui, config, self.settings.skip_intro);
+                            });
+                        }
+                        if let Err(error)=self.settings.validate() {ui.colored_label(GOLD,error);}
                     });
                 });
+                egui::CollapsingHeader::new("Arquivos e diagnóstico").show(ui,|ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.button("Dados e saves").clicked() {self.open(&PathBuf::from(&self.settings.data));}
+                        if ui.button("diablo.ini").clicked() {self.open(&Path::new(&self.settings.data).join("diablo.ini"));}
+                        if ui.button("Registro").clicked() {self.open(&log_path());}
+                    });
+                    ui.hyperlink_to("Como obter os arquivos do jogo","https://devilutionx.com/mpq");
+                    if !self.logs.is_empty() {
+                        ui.add(egui::Label::new(RichText::new(&self.logs).monospace()).selectable(true));
+                    }
+                });
             });
+            ui.add_space(10.0);
+            let mut save=false;
+            ui.horizontal(|ui| {
+                save=action_button(ui,"Salvar alterações",!running,Vec2::new(162.0,36.0)).clicked();
+                if ui.add_enabled(!running,egui::Button::new("Recarregar")).clicked() {reload=true;}
+            });
+            if reload {
+                egui::Popup::close_all(ui.ctx());
+                self.reload_config();self.report(Ok(()),"Configurações recarregadas.");
+            }
+            if save {
+                let expected=Path::new(&self.settings.data).join("diablo.ini");
+                let result=match &mut self.config {
+                    Ok(config) if config.path==expected=>config.save(),
+                    Ok(_)=>Err("A pasta dos dados mudou. Clique em Recarregar antes de salvar.".into()),
+                    Err(error)=>Err(error.clone()),
+                };
+                if result.is_ok() && let Some(storage)=frame.storage_mut() {
+                    eframe::set_value(storage,"settings",&self.settings);storage.flush();
+                }
+                self.report(result,"Configurações salvas.");
+            }
+            if !self.message.is_empty() {
+                ui.colored_label(if self.error {Color32::from_rgb(245,139,128)} else {GOLD},&self.message);
+            }
+        });
     }
 }
 
-fn section(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
-    egui::Frame::new()
-        .fill(Color32::from_rgb(22, 23, 27))
-        .corner_radius(10)
-        .inner_margin(18.0)
-        .show(ui, |ui| {
-            ui.set_min_width((ui.available_width() - 2.0).max(0.0));
-            ui.label(RichText::new(title).strong().size(15.0));
-            ui.add_space(6.0);
-            body(ui);
-        });
-    ui.add_space(8.0);
+fn action_button(ui: &mut egui::Ui, label: &str, enabled: bool, size: Vec2) -> egui::Response {
+    ui.scope(|ui| {
+        let widgets = &mut ui.visuals_mut().widgets;
+        widgets.inactive.weak_bg_fill = PRIMARY;
+        widgets.inactive.bg_fill = PRIMARY;
+        widgets.inactive.bg_stroke = egui::Stroke::NONE;
+        widgets.hovered.weak_bg_fill = Color32::from_rgb(183, 48, 57);
+        widgets.hovered.bg_fill = Color32::from_rgb(183, 48, 57);
+        widgets.hovered.bg_stroke = egui::Stroke::new(1.0_f32, Color32::from_rgb(216, 95, 102));
+        widgets.active.weak_bg_fill = Color32::from_rgb(119, 27, 36);
+        widgets.active.bg_fill = Color32::from_rgb(119, 27, 36);
+        ui.add_enabled(
+            enabled,
+            egui::Button::new(RichText::new(label).strong().color(Color32::WHITE))
+                .corner_radius(7)
+                .min_size(size),
+        )
+    })
+    .inner
 }
 
 impl eframe::App for Launcher {
@@ -727,6 +589,7 @@ impl eframe::App for Launcher {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.poll(ctx);
         egui::TopBottomPanel::top("navigation")
+            .show_separator_line(false)
             .frame(
                 egui::Frame::new()
                     .fill(BACKGROUND)
@@ -734,10 +597,26 @@ impl eframe::App for Launcher {
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.image((self.logo.id(), Vec2::splat(28.0)));
-                    if ui.available_width() > 480.0 {
-                        ui.label(RichText::new("DEVILUTIONX").strong().size(15.0));
-                    }
+                    let (icon_slot, _) =
+                        ui.allocate_exact_size(Vec2::new(28.0, 40.0), egui::Sense::hover());
+                    ui.painter().image(
+                        self.logo.id(),
+                        egui::Rect::from_center_size(icon_slot.center(), Vec2::splat(28.0)),
+                        egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
+                        Color32::WHITE,
+                    );
+                    let height = if ui.available_width() > 480.0 {
+                        40.0
+                    } else {
+                        32.0
+                    };
+                    ui.image((
+                        self.wordmark.id(),
+                        Vec2::new(
+                            height * self.wordmark.size_vec2().x / self.wordmark.size_vec2().y,
+                            height,
+                        ),
+                    ));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .selectable_label(self.tab == Tab::Settings, "Configurações")
@@ -748,12 +627,14 @@ impl eframe::App for Launcher {
                             {
                                 self.reload_config();
                             }
+                            egui::Popup::close_all(ui.ctx());
                             self.tab = Tab::Settings;
                         }
                         if ui
                             .selectable_label(self.tab == Tab::Play, "Jogar")
                             .clicked()
                         {
+                            egui::Popup::close_all(ui.ctx());
                             self.tab = Tab::Play;
                         }
                     });

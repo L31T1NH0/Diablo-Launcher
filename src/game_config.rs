@@ -158,9 +158,99 @@ fn read(path: &Path) -> Result<Option<String>, String> {
     }
 }
 
+pub const DEFAULTS: &str = include_str!("../config/defaults-1.5.5.ini");
+pub fn default_value(section: &str, key: &str) -> Option<&'static str> {
+    value(DEFAULTS, section, key)
+}
+
+#[derive(Clone, Debug)]
+pub struct ExtraOption {
+    pub section: String,
+    pub key: String,
+    pub value: String,
+    original: String,
+}
+
+impl ExtraOption {
+    pub fn changed(&self) -> bool {
+        self.value != self.original
+    }
+
+    pub fn hellfire_only(&self) -> bool {
+        matches!(
+            self.key.as_str(),
+            "Hellfire Intro"
+                | "Alternate nest art"
+                | "Theo Quest"
+                | "Cow Quest"
+                | "Test Bard"
+                | "Test Barbarian"
+                | "Auto Oil Pickup"
+        )
+    }
+}
+
+fn ini_entries(text: &str) -> Vec<(String, String, String)> {
+    let mut section = String::new();
+    let mut entries: Vec<(String, String, String)> = Vec::new();
+    for line in text.lines().map(str::trim) {
+        if line.starts_with([';', '#']) {
+            continue;
+        }
+        if let Some(name) = line.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            section = name.trim().into();
+        } else if !section.is_empty()
+            && let Some((key, val)) = line.split_once('=')
+        {
+            let key = key.trim();
+            if let Some(existing) = entries
+                .iter_mut()
+                .find(|(s, k, _)| s.eq_ignore_ascii_case(&section) && k.eq_ignore_ascii_case(key))
+            {
+                existing.2 = val.trim().into();
+            } else {
+                entries.push((section.clone(), key.into(), val.trim().into()));
+            }
+        }
+    }
+    entries
+}
+
+fn extra_options(text: &str, primary: &GameOptions) -> Vec<ExtraOption> {
+    let covered = primary.entries();
+    let mut entries = ini_entries(DEFAULTS);
+    for (section, key, val) in ini_entries(text) {
+        if let Some(entry) = entries
+            .iter_mut()
+            .find(|(s, k, _)| s.eq_ignore_ascii_case(&section) && k.eq_ignore_ascii_case(&key))
+        {
+            entry.2 = val;
+        } else {
+            entries.push((section, key, val));
+        }
+    }
+    entries
+        .into_iter()
+        .filter(|(section, key, _)| {
+            !matches!(section.as_str(), "Diablo" | "Hellfire")
+                && !(section == "GameMode" && key == "Game")
+                && !covered
+                    .iter()
+                    .any(|(s, k, _)| section.eq_ignore_ascii_case(s) && key.eq_ignore_ascii_case(k))
+        })
+        .map(|(section, key, value)| ExtraOption {
+            section,
+            key,
+            original: value.clone(),
+            value,
+        })
+        .collect()
+}
+
 pub struct GameConfig {
     pub path: PathBuf,
     pub options: GameOptions,
+    pub extra: Vec<ExtraOption>,
     original: Option<String>,
     loaded: GameOptions,
 }
@@ -169,8 +259,10 @@ impl GameConfig {
     pub fn load(path: PathBuf) -> Result<Self, String> {
         let original = read(&path)?;
         let options = GameOptions::from_ini(original.as_deref().unwrap_or(""));
+        let extra = extra_options(original.as_deref().unwrap_or(""), &options);
         Ok(Self {
             path,
+            extra,
             loaded: options.clone(),
             options,
             original,
@@ -178,17 +270,17 @@ impl GameConfig {
     }
 
     pub fn dirty(&self) -> bool {
-        self.options != self.loaded
+        self.options != self.loaded || self.extra.iter().any(ExtraOption::changed)
     }
 
     pub fn save(&mut self) -> Result<(), String> {
         if !self.dirty() {
             return Ok(());
         }
-        if !(640..=7680).contains(&self.options.width)
-            || !(480..=4320).contains(&self.options.height)
+        if !(640..=16384).contains(&self.options.width)
+            || !(480..=16384).contains(&self.options.height)
         {
-            return Err("Resolução fora do intervalo permitido (640×480 a 7680×4320).".into());
+            return Err("Resolução fora do intervalo permitido (640×480 a 16384×16384).".into());
         }
         if read(&self.path)? != self.original {
             return Err(
@@ -206,6 +298,16 @@ impl GameConfig {
             if val != old {
                 text = set_value(&text, section, key, &val);
             }
+        }
+        for option in self.extra.iter().filter(|option| option.changed()) {
+            if option.value.contains(['\n', '\r', '\0']) {
+                return Err(format!(
+                    "{}: o valor deve ocupar uma única linha.",
+                    option.key
+                ));
+            }
+            crate::option_catalog::validate(option)?;
+            text = set_value(&text, &option.section, &option.key, &option.value);
         }
         let temp = self
             .path
@@ -230,6 +332,9 @@ impl GameConfig {
         }
         self.original = Some(text);
         self.loaded = self.options.clone();
+        for option in &mut self.extra {
+            option.original = option.value.clone();
+        }
         Ok(())
     }
 }
@@ -298,6 +403,88 @@ mod tests {
         fs::write(&path, "external edit").unwrap();
         assert!(config.save().unwrap_err().contains("alterado fora"));
         assert_eq!(fs::read_to_string(&path).unwrap(), "external edit");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn catalog_covers_all_linux_options_and_defaults_are_valid() {
+        let options = GameOptions::from_ini(DEFAULTS);
+        let extras = extra_options(DEFAULTS, &options);
+        let primary = options.entries();
+        let keys = ini_entries(DEFAULTS);
+        assert_eq!(keys.len(), 190);
+        assert_eq!(primary.len() + extras.len(), keys.len());
+        for (section, key, _) in keys {
+            assert!(
+                primary.iter().any(|(s, k, _)| *s == section && *k == key)
+                    || extras.iter().any(|o| o.section == section && o.key == key),
+                "{section}.{key} ausente"
+            );
+        }
+        for option in &extras {
+            crate::option_catalog::validate(option).unwrap();
+        }
+        assert!(extras.iter().filter(|o| o.section == "Keymapping").count() > 40);
+        assert!(extras.iter().filter(|o| o.section == "Padmapping").count() > 50);
+    }
+
+    #[test]
+    fn edits_bindings_and_new_options_without_touching_unrelated_keys() {
+        let dir = std::env::temp_dir().join(format!(
+            "devilution-all-options-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("diablo.ini");
+        let original = "; keep\n[Keymapping]\nInventory=I\n[Controller]\ndeadzone=0.070000\n[Mod]\nFuture=old\n";
+        fs::write(&path, original).unwrap();
+        let mut config = GameConfig::load(path.clone()).unwrap();
+        for (section, key, val) in [
+            ("Keymapping", "Inventory", "TAB"),
+            ("Controller", "deadzone", "0.15"),
+            ("Mod", "Future", "new"),
+        ] {
+            config
+                .extra
+                .iter_mut()
+                .find(|o| o.section == section && o.key == key)
+                .unwrap()
+                .value = val.into();
+        }
+        assert!(config.dirty());
+        config.save().unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            original
+                .replace("Inventory=I", "Inventory=TAB")
+                .replace("deadzone=0.070000", "deadzone=0.15")
+                .replace("Future=old", "Future=new")
+        );
+        assert!(!config.dirty());
+        config
+            .extra
+            .iter_mut()
+            .find(|o| o.key == "Port")
+            .unwrap()
+            .value = "70000".into();
+        assert!(config.save().unwrap_err().contains("inválido"));
+        config
+            .extra
+            .iter_mut()
+            .find(|o| o.key == "Port")
+            .unwrap()
+            .value = "6112".into();
+        config
+            .extra
+            .iter_mut()
+            .find(|o| o.key == "Future")
+            .unwrap()
+            .value = "x\nInjected=yes".into();
+        assert!(config.save().unwrap_err().contains("única linha"));
         fs::remove_dir_all(dir).unwrap();
     }
 
