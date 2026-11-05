@@ -1,6 +1,8 @@
 use eframe::egui::{self, Color32, Vec2};
 pub(crate) const GOLD: Color32 = Color32::from_rgb(225, 166, 92);
 pub(crate) const PRIMARY: Color32 = Color32::from_rgb(151, 39, 48);
+pub(crate) const PRIMARY_HOVER: Color32 = Color32::from_rgb(183, 48, 57);
+pub(crate) const PRIMARY_ACTIVE: Color32 = Color32::from_rgb(119, 27, 36);
 pub(crate) const BACKGROUND: Color32 = Color32::from_rgb(14, 15, 18);
 pub(crate) const MUTED: Color32 = Color32::from_rgb(160, 154, 148);
 

@@ -1,7 +1,7 @@
 use super::{
     Tab,
     theme::{BACKGROUND, GOLD, MUTED},
-    widgets::action_button,
+    widgets::split_action_button,
 };
 use crate::{app::Launcher, config::GameConfig, game::Game};
 use eframe::egui::{self, Color32, Vec2};
@@ -125,11 +125,22 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
                     } else {
                         "INSTALL"
                     };
-                    if action_button(
+                    let selected = app.settings.game.title();
+                    let selectable = app.settings.has_data(Game::Diablo)
+                        && app.settings.has_data(Game::Hellfire);
+                    if split_action_button(
                         ui,
                         label,
+                        selected,
                         !running && !installing && !dirty,
-                        Vec2::new(148.0, 48.0),
+                        !running && !installing && selectable,
+                        |ui| {
+                            for game in [Game::Diablo, Game::Hellfire] {
+                                if app.settings.has_data(game) {
+                                    ui.selectable_value(&mut app.settings.game, game, game.title());
+                                }
+                            }
+                        },
                     )
                     .clicked()
                     {
@@ -141,18 +152,6 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
                         }
                         ui.ctx().request_repaint_after(Duration::from_millis(500));
                     }
-                    ui.add_enabled_ui(!running && !installing, |ui| {
-                        super::widgets::dropdown(ui, app.settings.game.title(), |ui| {
-                            for game in [Game::Diablo, Game::Hellfire] {
-                                if app.settings.has_data(game) {
-                                    ui.selectable_value(&mut app.settings.game, game, game.title());
-                                }
-                            }
-                            if !app.settings.has_data(Game::Diablo) {
-                                ui.label("No game installed yet");
-                            }
-                        });
-                    });
                 });
             });
             if !app.message.is_empty() && app.error {

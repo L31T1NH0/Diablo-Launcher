@@ -15,9 +15,9 @@ Install Diablo I, choose your settings, and return to Tristram — all from one 
 1. Install the [packages for your system](#requirements).
 2. Open the launcher and select **Install**.
 3. Choose **Diablo** or **Diablo + Hellfire**, then click **Install missing files**.
-4. Return to **Play** and choose the game beside the Play button.
+4. Return to **Play** and use the arrow inside the Play button to choose your game.
 
-Only installed games appear in the selector. Existing game files and saves are kept. You can also use your own installation under **Settings → Advanced**.
+The Play button shows the selected game. Its arrow lets you switch when both games are installed. Existing game files and saves are kept. You can also use your own installation under **Settings → Advanced**.
 
 ![Installing the game](assets/install.png)
 
@@ -117,7 +117,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo fmt --check
 ```
 
-Thirteen offline tests cover settings, edition detection, local HTTP downloads, size/checksum failures, active-download cancellation, unsafe archives, and preservation of files and saves. A separate live test also completed a fresh Diablo + Hellfire install from the configured servers in an isolated folder. The live test used this machine's local SDL libraries; package installation across all distributions has not been verified.
+Fourteen offline tests cover settings, edition detection, local HTTP downloads, size/checksum failures, active-download cancellation, unsafe archives, and preservation of files and saves. A separate live test also completed a fresh Diablo + Hellfire install from the configured servers in an isolated folder. The live test used this machine's local SDL libraries; package installation across all distributions has not been verified.
 
 The network test is opt-in because it downloads about 700 MB:
 
