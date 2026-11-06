@@ -1,5 +1,6 @@
 mod app;
 mod config;
+mod diablo2;
 mod game;
 mod installer;
 mod paths;
@@ -8,9 +9,11 @@ use eframe::egui;
 
 fn main() -> eframe::Result {
     eframe::run_native(
-        "Devilution Launcher",
+        "Diablo Launcher",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
+                // Keep the existing storage id when renaming the app.
+                .with_app_id("Devilution Launcher")
                 .with_icon(
                     eframe::icon_data::from_png_bytes(include_bytes!(
                         "../assets/devilutionx-logo.png"

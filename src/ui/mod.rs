@@ -1,3 +1,4 @@
+mod diablo2;
 pub(crate) mod hero;
 mod home;
 mod install;
@@ -5,7 +6,7 @@ pub(crate) mod options;
 mod settings;
 pub(crate) mod theme;
 mod widgets;
-use crate::{app::Launcher, config::GameConfig, game::Game};
+use crate::{app::Launcher, game::Game};
 use eframe::egui::{self, Color32, Vec2};
 use theme::BACKGROUND;
 #[derive(Clone, Copy, PartialEq)]
@@ -32,26 +33,21 @@ pub(crate) fn show(app: &mut Launcher, ctx: &egui::Context, frame: &mut eframe::
                     egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
                     Color32::WHITE,
                 );
-                let height = if ui.available_width() > 480.0 {
-                    40.0
-                } else {
-                    28.0
-                };
-                ui.image((
-                    app.wordmark.id(),
-                    Vec2::new(
-                        height * app.wordmark.size_vec2().x / app.wordmark.size_vec2().y,
-                        height,
-                    ),
-                ));
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    ui.label(egui::RichText::new("DIABLO").size(24.0).color(theme::GOLD));
+                    ui.label(
+                        egui::RichText::new("LAUNCHER")
+                            .size(10.0)
+                            .color(theme::MUTED),
+                    );
+                });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
                         .selectable_label(app.tab == Tab::Settings, "Settings")
                         .clicked()
                     {
-                        if app.tab != Tab::Settings
-                            && !app.config.as_ref().is_ok_and(GameConfig::dirty)
-                        {
+                        if app.tab != Tab::Settings && !app.settings_dirty() {
                             app.reload_config();
                         }
                         egui::Popup::close_all(ui.ctx());
@@ -63,7 +59,9 @@ pub(crate) fn show(app: &mut Launcher, ctx: &egui::Context, frame: &mut eframe::
                     {
                         egui::Popup::close_all(ui.ctx());
                         app.tab = Tab::Install;
-                        if app.settings.has_data(Game::Diablo)
+                        app.install_game = app.settings.game;
+                        if app.settings.game != Game::DiabloII
+                            && app.settings.has_data(Game::Diablo)
                             && !app.settings.has_data(Game::Hellfire)
                         {
                             app.install_game = Game::Hellfire;

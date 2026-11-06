@@ -1,8 +1,8 @@
 use crate::{
-    config::{GameConfig, catalog::Category},
+    config::{GameConfig, catalog::Category, diablo2::D2Config},
     game::{Game, Settings, has_file},
     installer,
-    paths::{data_home, log_path},
+    paths::{data_home, game_log},
     ui::{self, Tab, theme::load_texture},
 };
 use eframe::egui;
@@ -22,7 +22,7 @@ pub(crate) struct Launcher {
     pub(crate) config: Result<GameConfig, String>,
     pub(crate) hero: ui::hero::Hero,
     pub(crate) logo: egui::TextureHandle,
-    pub(crate) wordmark: egui::TextureHandle,
+    pub(crate) d2_config: Result<D2Config, String>,
     pub(crate) category: Category,
     pub(crate) install: Option<installer::Job>,
     pub(crate) install_game: Game,
@@ -45,11 +45,7 @@ impl Launcher {
                 "devilution-logo",
                 include_bytes!("../assets/devilutionx-logo.png"),
             ),
-            wordmark: load_texture(
-                &cc.egui_ctx,
-                "devilution-wordmark",
-                include_bytes!("../assets/devilutionx-wordmark.png"),
-            ),
+            d2_config: D2Config::load(crate::diablo2::config_path()),
             category: Category::Video,
             install: None,
             install_game: Game::Diablo,
@@ -70,17 +66,23 @@ impl Launcher {
         if self.child.is_some() || self.install.is_some() {
             return Err("Close the game and wait for the current installation to finish.".into());
         }
-        if self.config.as_ref().is_ok_and(GameConfig::dirty) {
+        if self.settings_dirty() {
             return Err("Save or reload your game settings before installing.".into());
         }
-        if self.settings.data.trim().is_empty() {
+        if self.settings.data_for(self.install_game).trim().is_empty() {
             return Err("Choose a game data folder in Settings first.".into());
         }
         let plan = installer::Plan {
             game: self.install_game,
-            data: PathBuf::from(&self.settings.data),
-            executable: PathBuf::from(&self.settings.executable),
-            managed_engine: data_home().join("devilutionx"),
+            data: PathBuf::from(self.settings.data_for(self.install_game)),
+            executable: PathBuf::from(self.settings.executable_for(self.install_game)),
+            managed_engine: data_home().join(if self.install_game == Game::DiabloII {
+                "d2decomp"
+            } else {
+                "devilutionx"
+            }),
+            source: (self.install_game == Game::DiabloII)
+                .then(|| PathBuf::from(&self.settings.diablo2.source)),
         };
         self.install_status = "Preparing installation…".into();
         self.install_bytes = 0;
@@ -93,11 +95,15 @@ impl Launcher {
     }
 
     pub(crate) fn save_settings(&mut self, frame: &mut eframe::Frame) -> Result<(), String> {
-        let expected = Path::new(&self.settings.data).join("diablo.ini");
-        match &mut self.config {
-            Ok(config) if config.path == expected => config.save()?,
-            Ok(_) => return Err("The data folder changed. Click Reload before saving.".into()),
-            Err(error) => return Err(error.clone()),
+        if self.settings.game == Game::DiabloII {
+            self.d2_config.as_mut().map_err(|e| e.clone())?.save()?;
+        } else {
+            let expected = Path::new(&self.settings.data).join("diablo.ini");
+            match &mut self.config {
+                Ok(config) if config.path == expected => config.save()?,
+                Ok(_) => return Err("The data folder changed. Click Reload before saving.".into()),
+                Err(error) => return Err(error.clone()),
+            }
         }
         if let Some(storage) = frame.storage_mut() {
             eframe::set_value(storage, "settings", &self.settings);
@@ -120,21 +126,24 @@ impl Launcher {
     }
 
     pub(crate) fn launch(&mut self) -> Result<(), String> {
-        if self.config.as_ref().is_ok_and(GameConfig::dirty) {
+        if self.settings_dirty() {
             return Err("Save or reload your settings before playing.".into());
         }
         let mut command = self.settings.command()?;
-        let data = Path::new(&self.settings.data);
-        let executable = fs::canonicalize(&self.settings.executable).map_err(|e| e.to_string())?;
-        // --data-dir also changes where the engine looks for its own resources.
-        for name in ["devilutionx.mpq", "fonts.mpq"] {
-            let source = executable.parent().unwrap().join(name);
-            if source.is_file() && !has_file(data, name) {
-                fs::copy(&source, data.join(name))
-                    .map_err(|e| format!("Could not copy {name}: {e}"))?;
+        if self.settings.game != Game::DiabloII {
+            let data = Path::new(&self.settings.data);
+            let executable =
+                fs::canonicalize(&self.settings.executable).map_err(|e| e.to_string())?;
+            // --data-dir also changes where the engine looks for its own resources.
+            for name in ["devilutionx.mpq", "fonts.mpq"] {
+                let source = executable.parent().unwrap().join(name);
+                if source.is_file() && !has_file(data, name) {
+                    fs::copy(&source, data.join(name))
+                        .map_err(|e| format!("Could not copy {name}: {e}"))?;
+                }
             }
         }
-        let path = log_path();
+        let path = game_log(self.settings.game);
         fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
         let log = fs::File::create(&path).map_err(|e| e.to_string())?;
         command.stdout(Stdio::from(log.try_clone().map_err(|e| e.to_string())?));
@@ -176,7 +185,7 @@ impl Launcher {
             Ok(Some(status)) => {
                 self.child = None;
                 self.reload_config();
-                self.logs = fs::read_to_string(log_path()).unwrap_or_default();
+                self.logs = fs::read_to_string(game_log(self.settings.game)).unwrap_or_default();
                 self.error = !status.success();
                 self.message = if status.success() {
                     "Game closed.".into()
@@ -193,7 +202,13 @@ impl Launcher {
         }
     }
 
+    pub(crate) fn settings_dirty(&self) -> bool {
+        self.config.as_ref().is_ok_and(GameConfig::dirty)
+            || self.d2_config.as_ref().is_ok_and(D2Config::dirty)
+    }
+
     pub(crate) fn reload_config(&mut self) {
+        self.d2_config = D2Config::load(crate::diablo2::config_path());
         self.config = GameConfig::load(Path::new(&self.settings.data).join("diablo.ini"));
     }
 
@@ -217,8 +232,12 @@ impl Launcher {
                     self.install.take();
                     match result {
                         Ok(installed) => {
-                            self.settings.executable =
-                                installed.executable.to_string_lossy().into_owned();
+                            let executable = installed.executable.to_string_lossy().into_owned();
+                            if installed.game == Game::DiabloII {
+                                self.settings.diablo2.executable = executable;
+                            } else {
+                                self.settings.executable = executable;
+                            }
                             self.settings.game = installed.game;
                             self.install_status = "Installation complete. You can now play.".into();
                             self.report(Ok(()), "Installation complete.");
@@ -248,7 +267,8 @@ impl eframe::App for Launcher {
         self.poll_install(ctx);
         if self.install.is_none()
             && self.child.is_none()
-            && !self.settings.has_data(self.settings.game)
+            && self.settings.game == Game::Hellfire
+            && !self.settings.has_data(Game::Hellfire)
         {
             self.settings.game = Game::Diablo;
         }
@@ -259,6 +279,7 @@ impl eframe::App for Launcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use eframe::Storage;
     #[test]
     fn settings_round_trip() {
         struct Memory(std::collections::HashMap<String, String>);
@@ -281,5 +302,14 @@ mod tests {
         let restored: Settings = eframe::get_value(&storage, "settings").unwrap();
         assert_eq!(restored.data, settings.data);
         assert_eq!(restored.game, Game::Hellfire);
+        assert!(!restored.diablo2.executable.is_empty());
+        storage.set_string(
+            "settings",
+            "(executable:\"old-engine\",data:\"old-data\",game:Hellfire,skip_intro:true)".into(),
+        );
+        let legacy: Settings = eframe::get_value(&storage, "settings").unwrap();
+        assert_eq!(legacy.executable, "old-engine");
+        assert_eq!(legacy.game, Game::Hellfire);
+        assert!(!legacy.diablo2.data.is_empty());
     }
 }

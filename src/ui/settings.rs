@@ -4,6 +4,10 @@ use crate::{config::catalog::Category, game::Settings, paths::log_path};
 use eframe::egui::{self, Color32, RichText, Vec2};
 use std::path::{Path, PathBuf};
 pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    if app.settings.game == crate::game::Game::DiabloII {
+        super::diablo2::settings(app, ui, frame);
+        return;
+    }
     let running = app.child.is_some() || app.install.is_some();
     egui::Frame::new()
         .inner_margin(egui::Margin::symmetric(28, 16))

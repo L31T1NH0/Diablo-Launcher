@@ -1,11 +1,14 @@
 mod data;
+mod diablo2;
 mod download;
 mod engine;
+mod import;
 mod job;
 #[cfg(test)]
 mod tests;
 use crate::game::Game;
 pub(crate) use data::{DIABLO_URL, HELLFIRE_URL};
+pub(crate) use diablo2::URL as D2_ENGINE_URL;
 pub(crate) use engine::ENGINE_URL;
 pub(crate) use job::Job;
 use std::{
@@ -19,6 +22,7 @@ pub struct Plan {
     pub data: PathBuf,
     pub executable: PathBuf,
     pub managed_engine: PathBuf,
+    pub source: Option<PathBuf>,
 }
 pub struct Installed {
     pub executable: PathBuf,
@@ -83,6 +87,20 @@ fn run(plan: &Plan, cancel: &AtomicBool, progress: Progress<'_>) -> Result<Insta
     }
     fs::create_dir_all(&plan.data).map_err(|e| format!("Could not create the data folder: {e}"))?;
     let work = WorkDir::new(&plan.data)?;
+    if plan.game == Game::DiabloII {
+        import::archives(
+            plan.source.as_deref(),
+            &plan.data,
+            &work.0,
+            cancel,
+            progress,
+        )?;
+        let executable = diablo2::prepare(plan, &work.0, cancel, progress)?;
+        return Ok(Installed {
+            executable,
+            game: plan.game,
+        });
+    }
     let executable = engine::prepare(plan, &work.0, cancel, progress)?;
     data::install_archive(&data::DIABLO, &plan.data, &work.0, cancel, progress)?;
     if plan.game == Game::Hellfire {

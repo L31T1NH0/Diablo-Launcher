@@ -1,5 +1,5 @@
 use super::{Tab, theme::GOLD, widgets::split_action_button};
-use crate::{app::Launcher, config::GameConfig, game::Game};
+use crate::{app::Launcher, game::Game};
 use eframe::egui::{self, Color32};
 use std::time::Duration;
 pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
@@ -9,7 +9,7 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
         .inner_margin(egui::Margin::symmetric(32, 14))
         .show(ui, |ui| {
             let ready = app.settings.validate();
-            let dirty = app.config.as_ref().is_ok_and(GameConfig::dirty);
+            let dirty = app.settings_dirty();
             let running = app.child.is_some();
             let installing = app.install.is_some();
             let (status, color) = if installing {
@@ -42,24 +42,25 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
                         "INSTALL"
                     };
                     let selected = app.settings.game.title();
-                    let selectable = app.settings.has_data(Game::Diablo)
-                        && app.settings.has_data(Game::Hellfire);
                     if split_action_button(
                         ui,
                         label,
                         selected,
                         !running && !installing && !dirty,
-                        !running && !installing && selectable,
+                        !running && !installing && !dirty,
                         |ui| {
-                            for game in [Game::Diablo, Game::Hellfire] {
-                                if app.settings.has_data(game)
-                                    && ui
-                                        .selectable_value(
-                                            &mut app.settings.game,
-                                            game,
-                                            game.title(),
-                                        )
-                                        .changed()
+                            for game in Game::ALL {
+                                if game == Game::Hellfire && !app.settings.has_data(game) {
+                                    continue;
+                                }
+                                let title = if app.settings.has_data(game) {
+                                    game.title().to_owned()
+                                } else {
+                                    format!("{} · Install", game.title())
+                                };
+                                if ui
+                                    .selectable_value(&mut app.settings.game, game, title)
+                                    .changed()
                                 {
                                     ui.ctx().request_repaint();
                                 }
@@ -72,6 +73,7 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
                             let result = app.launch();
                             app.report(result, "");
                         } else {
+                            app.install_game = app.settings.game;
                             app.tab = Tab::Install;
                         }
                         ui.ctx().request_repaint_after(Duration::from_millis(500));

@@ -5,11 +5,17 @@ use eframe::egui::{self, Color32, Vec2};
 pub(crate) struct Hero {
     diablo: egui::TextureHandle,
     hellfire: egui::TextureHandle,
+    diablo2: egui::TextureHandle,
 }
 
 impl Hero {
     pub(crate) fn new(ctx: &egui::Context) -> Self {
         Self {
+            diablo2: load_texture(
+                ctx,
+                "diablo2-hero",
+                include_bytes!("../../assets/diablo2-hero.jpg"),
+            ),
             diablo: load_texture(
                 ctx,
                 "diablo-hero",
@@ -36,21 +42,36 @@ impl Hero {
             ),
             egui::Sense::hover(),
         );
-        let target = if game == Game::Hellfire { 1.0 } else { 0.0 };
-        let linear =
-            ui.ctx()
-                .animate_value_with_time(ui.make_persistent_id("hero-edition"), target, 0.45);
-        let blend = linear * linear * (3.0 - 2.0 * linear);
+        let mut weights = [0.0_f32; 3];
+        for (i, edition) in Game::ALL.iter().enumerate() {
+            let linear = ui.ctx().animate_value_with_time(
+                ui.make_persistent_id(("hero-edition", i)),
+                if game == *edition { 1.0 } else { 0.0 },
+                0.45,
+            );
+            weights[i] = linear * linear * (3.0 - 2.0 * linear);
+        }
+        let sum = weights.iter().sum::<f32>().max(f32::EPSILON);
+        for weight in &mut weights {
+            *weight /= sum;
+        }
         let painter = ui.painter();
         painter.rect_filled(rect, 0, BACKGROUND);
-        // Fade both layers so transparent parts of the Hellfire PNG reveal the background.
-        for (texture, alpha) in [(&self.diablo, 1.0 - blend), (&self.hellfire, blend)] {
-            if alpha > 0.0 {
+        // Fade every layer so transparent artwork reveals the background.
+        for (i, texture) in [&self.diablo, &self.hellfire, &self.diablo2]
+            .into_iter()
+            .enumerate()
+        {
+            if weights[i] > 0.0 {
                 painter.image(
                     texture.id(),
                     rect,
-                    cover_uv(texture.size_vec2(), rect.size()),
-                    Color32::from_white_alpha((alpha * 255.0).round() as u8),
+                    cover_uv(
+                        texture.size_vec2(),
+                        rect.size(),
+                        if i == 2 { 0.85 } else { 0.5 },
+                    ),
+                    Color32::from_white_alpha((weights[i] * 255.0).round() as u8),
                 );
             }
         }
@@ -83,12 +104,17 @@ impl Hero {
             (
                 "DIABLO",
                 "A classic. A new adventure.",
-                (1.0 - 2.0 * blend).clamp(0.0, 1.0),
+                (2.0 * weights[0] - 1.0).clamp(0.0, 1.0),
             ),
             (
                 "HELLFIRE",
                 "The darkness goes deeper.",
-                (2.0 * blend - 1.0).clamp(0.0, 1.0),
+                (2.0 * weights[1] - 1.0).clamp(0.0, 1.0),
+            ),
+            (
+                "DIABLO II",
+                "Follow the Dark Wanderer.",
+                (2.0 * weights[2] - 1.0).clamp(0.0, 1.0),
             ),
         ] {
             if alpha > 0.0 {
@@ -112,14 +138,14 @@ impl Hero {
     }
 }
 
-fn cover_uv(image: Vec2, viewport: Vec2) -> egui::Rect {
+fn cover_uv(image: Vec2, viewport: Vec2, anchor: f32) -> egui::Rect {
     let image_aspect = image.x / image.y;
     let viewport_aspect = viewport.x / viewport.y;
     if image_aspect > viewport_aspect {
         let width = viewport_aspect / image_aspect;
         egui::Rect::from_min_max(
-            egui::pos2((1.0 - width) / 2.0, 0.0),
-            egui::pos2((1.0 + width) / 2.0, 1.0),
+            egui::pos2((1.0 - width) * anchor, 0.0),
+            egui::pos2((1.0 - width) * anchor + width, 1.0),
         )
     } else {
         let height = image_aspect / viewport_aspect;

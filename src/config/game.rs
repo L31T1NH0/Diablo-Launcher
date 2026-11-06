@@ -1,6 +1,5 @@
 use std::{
     fs,
-    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -303,27 +302,7 @@ impl GameConfig {
             crate::config::catalog::validate(option)?;
             text = set_value(&text, &option.section, &option.key, &option.value);
         }
-        let temp = self
-            .path
-            .with_file_name(format!(".diablo.ini.launcher-{}.tmp", std::process::id()));
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)
-            .map_err(|e| format!("Could not prepare the settings file: {e}"))?;
-        let result = (|| {
-            if self.original.is_some() {
-                fs::copy(&self.path, self.path.with_extension("ini.launcher.bak"))?;
-                file.set_permissions(fs::metadata(&self.path)?.permissions())?;
-            }
-            file.write_all(text.as_bytes())?;
-            file.sync_all()?;
-            fs::rename(&temp, &self.path)
-        })();
-        if let Err(e) = result {
-            let _ = fs::remove_file(&temp);
-            return Err(format!("Could not save settings: {e}"));
-        }
+        super::file::save(&self.path, &self.original, &text)?;
         self.original = Some(text);
         self.loaded = self.options.clone();
         for option in &mut self.extra {

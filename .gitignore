@@ -6,3 +6,13 @@
 *.hsv
 diablo.ini*
 .devilution-install-*/
+
+# Diablo II game files and local engine packages
+*.d2s
+*.d2x
+*.key
+Game.exe
+game.exe
+*.iso
+*.flatpak
+d2d.cfg*

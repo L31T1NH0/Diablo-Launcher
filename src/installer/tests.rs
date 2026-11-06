@@ -232,6 +232,7 @@ fn complete_installation_is_reused_without_changing_game_settings() {
     }
     let plan = Plan {
         game: Game::Hellfire,
+        source: None,
         data: data.clone(),
         executable: executable.clone(),
         managed_engine: fixture.0.join("not-used"),
@@ -265,6 +266,7 @@ fn live_fresh_install_from_configured_sources() {
     let fixture = Fixture::new();
     let plan = Plan {
         game: Game::Hellfire,
+        source: None,
         data: fixture.0.join("game data with spaces"),
         executable: fixture.0.join("not-installed"),
         managed_engine: fixture.0.join("managed engine"),
@@ -284,4 +286,88 @@ fn live_fresh_install_from_configured_sources() {
     }
     assert!(plan.data.join("devilutionx.mpq").is_file());
     assert!(!plan.data.join("diablo.ini").exists());
+}
+
+#[test]
+fn diablo2_import_keeps_sources_saves_and_existing_mpqs() {
+    let fixture = Fixture::new();
+    let source = fixture.0.join("original data");
+    let target = fixture.0.join("managed data");
+    fs::create_dir(&source).unwrap();
+    fs::create_dir(&target).unwrap();
+    for name in crate::diablo2::ARCHIVES {
+        fs::write(source.join(name.to_uppercase()), mpq()).unwrap();
+    }
+    fs::write(target.join("hero.d2s"), b"keep save").unwrap();
+    let mut keep = mpq();
+    keep.extend_from_slice(b"keep existing");
+    fs::write(target.join("D2CHAR.MPQ"), &keep).unwrap();
+    let work = WorkDir::new(&target).unwrap();
+    let cancel = AtomicBool::new(false);
+    super::import::archives(Some(&source), &target, &work.0, &cancel, &|_, _, _| {}).unwrap();
+    assert_eq!(fs::read(target.join("D2CHAR.MPQ")).unwrap(), keep);
+    assert!(!target.join("d2char.mpq").exists());
+    assert_eq!(fs::read(target.join("hero.d2s")).unwrap(), b"keep save");
+    for name in crate::diablo2::ARCHIVES {
+        assert_eq!(fs::read(source.join(name.to_uppercase())).unwrap(), mpq());
+    }
+    assert_eq!(fs::read(target.join("d2exp.mpq")).unwrap(), mpq());
+    // A completed installation needs neither the source folder nor another copy.
+    super::import::archives(None, &target, &work.0, &cancel, &|_, _, _| {}).unwrap();
+    fs::write(target.join("d2exp.mpq"), b"broken archive").unwrap();
+    assert!(
+        super::import::archives(Some(&source), &target, &work.0, &cancel, &|_, _, _| {}).is_err()
+    );
+    assert_eq!(
+        fs::read(target.join("d2exp.mpq")).unwrap(),
+        b"broken archive"
+    );
+}
+
+#[test]
+fn diablo2_import_cancellation_never_publishes_partial_archive() {
+    let fixture = Fixture::new();
+    let source = fixture.0.join("source");
+    let target = fixture.0.join("target");
+    fs::create_dir(&source).unwrap();
+    fs::create_dir(&target).unwrap();
+    let mut bytes = mpq();
+    bytes.resize(2 * 1024 * 1024, 0);
+    for name in crate::diablo2::ARCHIVES {
+        fs::write(source.join(name), &bytes).unwrap();
+    }
+    let work = WorkDir::new(&target).unwrap();
+    let cancel = AtomicBool::new(false);
+    let result = super::import::archives(Some(&source), &target, &work.0, &cancel, &|_, _, _| {
+        cancel.store(true, Ordering::Relaxed);
+    });
+    assert!(result.unwrap_err().contains("canceled"));
+    assert!(!target.join("d2data.mpq").exists());
+}
+
+#[test]
+fn diablo2_install_routes_to_its_engine_and_keeps_diablo1_out() {
+    let fixture = Fixture::new();
+    let source = fixture.0.join("source");
+    fs::create_dir(&source).unwrap();
+    for name in crate::diablo2::ARCHIVES {
+        fs::write(source.join(name), mpq()).unwrap();
+    }
+    let executable = fixture.0.join("d2d");
+    fs::write(&executable, "#!/bin/sh\n[ \"$1\" = --help ]\n").unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+    let plan = Plan {
+        game: Game::DiabloII,
+        source: Some(source),
+        data: fixture.0.join("data"),
+        executable: executable.clone(),
+        managed_engine: fixture.0.join("engine"),
+    };
+    let installed = run(&plan, &AtomicBool::new(false), &|_, _, _| {}).unwrap();
+    assert_eq!(installed.game, Game::DiabloII);
+    assert_eq!(installed.executable, executable);
+    assert!(!plan.data.join("DIABDAT.MPQ").exists());
+    assert!(!plan.data.join("devilutionx.mpq").exists());
+    assert!(crate::diablo2::has_data(&plan.data));
 }

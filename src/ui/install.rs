@@ -17,12 +17,20 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
                 ui.horizontal_wrapped(|ui| {
                     ui.selectable_value(&mut app.install_game, Game::Diablo, "Diablo");
                     ui.selectable_value(&mut app.install_game, Game::Hellfire, "Diablo + Hellfire");
+                    ui.selectable_value(&mut app.install_game, Game::DiabloII, "Diablo II + Lord of Destruction");
                 });
-                ui.label(if app.install_game == Game::Diablo {"Up to 550 MB to download."}
-                    else {"Up to 725 MB to download, including Diablo."});
-                ui.label("Existing game files and saves are kept. Only missing files are downloaded.");
+                if app.install_game == Game::DiabloII {
+                    ui.label("Import your Diablo II + Lord of Destruction 1.14d MPQs. About 2 GiB of free space is needed for a full copy.");
+                    ui.label("Folder containing the MPQs");
+                    ui.add(egui::TextEdit::singleline(&mut app.settings.diablo2.source).desired_width(f32::INFINITY));
+                    ui.small("The engine is downloaded separately (about 5 MB). SDL3, OpenAL and ostree are required; see the README.");
+                } else {
+                    ui.label(if app.install_game == Game::Diablo {"Up to 550 MB to download."}
+                        else {"Up to 725 MB to download, including Diablo."});
+                }
+                ui.label("Existing game files and saves are kept. Source files are never moved.");
                 ui.add_space(10.0);
-                if action_button(ui, "Install missing files", true, Vec2::new(195.0, 42.0)).clicked() {
+                if action_button(ui, if app.install_game == Game::DiabloII {"Install and import"} else {"Install missing files"}, true, Vec2::new(195.0, 42.0)).clicked() {
                     let result=app.start_install(ui.ctx());
                     app.report(result, "");
                 }
@@ -45,11 +53,17 @@ pub(crate) fn show(app: &mut Launcher, ui: &mut egui::Ui) {
             }
             ui.add_space(18.0);
             egui::CollapsingHeader::new("Download sources and install folder").show(ui, |ui| {
-                ui.label(format!("Game folder: {}",app.settings.data));
-                ui.hyperlink_to("DevilutionX: official release",installer::ENGINE_URL);
-                ui.hyperlink_to("Diablo MPQ: cdn.pvpgn.pro",installer::DIABLO_URL);
-                ui.hyperlink_to("Hellfire MPQs: hoffmeister.li",installer::HELLFIRE_URL);
-                ui.small("Game data comes from third-party mirrors. Downloads are checked before installation.");
+                ui.label(format!("Game folder: {}",app.settings.data_for(app.install_game)));
+                if app.install_game == Game::DiabloII {
+                    ui.hyperlink_to("D2Decomp: official release",installer::D2_ENGINE_URL);
+                    ui.hyperlink_to("Diablo II and LoD: Blizzard installers", "https://us.support.blizzard.com/en/article/13867");
+                    ui.small("Import the MPQs from your own Diablo II + Lord of Destruction installation. They are stored separately from Diablo I.");
+                } else {
+                    ui.hyperlink_to("DevilutionX: official release",installer::ENGINE_URL);
+                    ui.hyperlink_to("Diablo MPQ: cdn.pvpgn.pro",installer::DIABLO_URL);
+                    ui.hyperlink_to("Hellfire MPQs: hoffmeister.li",installer::HELLFIRE_URL);
+                    ui.small("Game data comes from third-party mirrors. Downloads are checked before installation.");
+                }
             });
         });
     });
