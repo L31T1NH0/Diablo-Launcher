@@ -102,6 +102,7 @@ Older Fedora releases may use `SDL2` instead of `sdl2-compat`. Other distributio
 
 ## Technical notes
 
+- Release builds keep speed optimization (`opt-level = 3`), use Thin LTO and one codegen unit, and strip symbols to reduce binary size. This takes longer to compile.
 - Built with Rust and egui. DevilutionX is downloaded separately; the option catalog targets version 1.5.5.
 - Fresh downloads need about 550 MB for Diablo, or 725 MB including Hellfire. Extra free space is needed while unpacking. Already installed files are skipped, including compatible MPQs from other editions.
 - The engine uses the official HTTPS release. MPQ downloads use pinned SHA-256 checksums. Changed mirror files are rejected rather than installed. Failed or canceled downloads do not replace existing files; completed files are kept for the next attempt.
