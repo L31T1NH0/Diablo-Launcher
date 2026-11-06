@@ -2,7 +2,7 @@
   <img src="assets/devilutionx-logo.png" width="64" alt="Diablo Launcher icon">
 </p>
 
-# Azra Launcher
+# Diablo Launcher
 
 Play Diablo I, Hellfire, and Diablo II from one Linux app.
 
@@ -53,7 +53,7 @@ Existing files and saves are kept. Game archives are stored locally and are neve
 
 ## Get the launcher
 
-Download the Linux x86_64 binary from [Releases](https://github.com/L31T1NH0/azra-launcher/releases/latest), install the runtime packages listed below, then run:
+Download the Linux x86_64 binary from [Releases](https://github.com/L31T1NH0/diablo-launcher/releases/latest), install the runtime packages listed below, then run:
 
 ```bash
 chmod +x diablo-launcher
@@ -65,8 +65,8 @@ chmod +x diablo-launcher
 Install [Rust 1.88 or newer](https://rustup.rs) and the build packages in the next section, then run:
 
 ```bash
-git clone https://github.com/L31T1NH0/azra-launcher.git
-cd azra-launcher
+git clone https://github.com/L31T1NH0/diablo-launcher.git
+cd diablo-launcher
 bash scripts/install-launcher.sh
 ```
 
